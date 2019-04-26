@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+ 
+    <parent>
+        <groupId>com.paremus.brain.iot</groupId>
+        <artifactId>eventing-substrate</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>..</relativePath>
+    </parent>
+
+    <groupId>com.paremus.brain.iot.example</groupId>
+    <artifactId>eventing-example</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <description>An eventing-substrate example - built using OSGi enRoute R7</description>
+
+  <modules>
+    <module>sensor.api</module>
+    <module>light.api</module>
+    <module>sensor.impl</module>
+    <module>light.impl</module>
+    <module>behaviour.impl</module>
+    <module>single-framework-example</module>
+  </modules>
+</project>
