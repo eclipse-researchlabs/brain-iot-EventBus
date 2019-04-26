@@ -22,6 +22,8 @@ import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicy;
 import org.osgi.util.converter.TypeReference;
 
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
@@ -63,7 +65,7 @@ public class EventBusImpl implements EventBus {
 
 	private final Object threadLock = new Object();
 
-	@Reference
+	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC)
 	void addSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Map<String, Object> properties) {
 		Object consumed = properties.get(SmartBehaviourDefinition.PREFIX_ + "consumed");
 		
@@ -181,8 +183,9 @@ public class EventBusImpl implements EventBus {
 			List<SmartBehaviour<BrainIoTEvent>> tmp = consumedToMaps.get(eventName);
 			if(tmp == null) {
 				behaviours = new ArrayList<>();
+			} else {
+				behaviours = new ArrayList<>(tmp);
 			}
-			behaviours = new ArrayList<>(tmp);
 		}
 		
 		// TODO apply the filters

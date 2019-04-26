@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" ng-app>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paremus BRAIN-IoT Virtual Lightbulb Example</title>
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/bootstrap-responsive.min.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script src="js/EventSource.js"></script>
+  <script src="lib/angular/angular.min.js"></script>
+  <script src="js/controllers.js"></script>
+  <script src="lib/jquery/jquery-1.10.1.min.js"></script>
+  <script src="lib/bootstrap/bootstrap.min.js"></script>
+</head>
+
+<body ng-controller="LightUICtl">
+
+  <div class="container-fluid">
+    <div class="row">
+      <div class="span4 logo">
+        <img border="0" src="img/logo-paremus.png" alt="Paremus Ltd">
+      </div>
+      <div class="span4">
+        <h4 ng-bind-template="Welcome to the Web Light Bulb"></h4>
+      </div>
+    </div>
+    
+    <div class="row-fluid" ng-if="!bulb">    
+      <div class="span12">
+        <span>No bulb to display. Is everything deployed properly?</span>
+      </div>
+    </div>
+    
+    <div class="row-fluid" ng-if="bulb">    
+      <div class="span4">
+        <img ng-src="{{bulb.imageUrl}}" alt="{{bulb.brightness}} : {{bulb.status}}" />
+      </div>
+      <div class="span4" ng-if="!bulb.error">
+        <span>Brightness is {{bulb.brightness}} and the bulb is {{bulb.status}}</span>
+      </div>
+      <div class="span4" ng-if="bulb.error">
+        <span>An error occurred {{bulb.error}}</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
