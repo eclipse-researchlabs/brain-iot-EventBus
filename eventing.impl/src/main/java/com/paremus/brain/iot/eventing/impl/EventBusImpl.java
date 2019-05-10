@@ -13,11 +13,16 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import org.osgi.framework.Constants;
+import org.osgi.framework.Filter;
+import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -46,7 +51,7 @@ public class EventBusImpl implements EventBus {
 	 * Map access and mutation must be synchronized on {@link #lock}.
 	 * Values from the map should be copied as the contents are not thread safe.
 	 */
-	private final Map<String, List<SmartBehaviour<BrainIoTEvent>>> consumedToMaps = 
+	private final Map<String, Map<SmartBehaviour<BrainIoTEvent>, Filter>> consumedToMaps = 
 			new HashMap<>();
 
 	/**
@@ -78,17 +83,27 @@ public class EventBusImpl implements EventBus {
 		
 		Long serviceId = getServiceId(properties);
 		
-		doAddSmartBehaviour(behaviour, list, serviceId);
+		Filter f;
+		try {
+			f = getFilter(properties);
+		} catch (InvalidSyntaxException e) {
+			// TODO Log a broken behaviour
+			e.printStackTrace();
+			return;
+		}
+		
+		doAddSmartBehaviour(behaviour, f, list, serviceId);
 	}
 
-	private void doAddSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, List<String> list, Long serviceId) {
+	private void doAddSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Filter filter, 
+			List<String> list, Long serviceId) {
 		synchronized (lock) {
 			knownBehaviours.put(serviceId, list);
 			
 			list.forEach(s -> {
-				List<SmartBehaviour<BrainIoTEvent>> behaviours = 
-						consumedToMaps.computeIfAbsent(s, x -> new ArrayList<>());
-				behaviours.add(behaviour);
+				Map<SmartBehaviour<BrainIoTEvent>, Filter> behaviours = 
+						consumedToMaps.computeIfAbsent(s, x -> new HashMap<>());
+				behaviours.put(behaviour, filter);
 			});
 		}
 	}
@@ -104,12 +119,22 @@ public class EventBusImpl implements EventBus {
 		return standardConverter().convert(properties.get(Constants.SERVICE_ID)).to(Long.class);
 	}
 
+	private Filter getFilter(Map<String, Object> properties) throws InvalidSyntaxException {
+		Object o = properties.get(SmartBehaviourDefinition.PREFIX_ + "filter");
+		
+		if(o == null) {
+			return null;
+		} else {
+			return FrameworkUtil.createFilter(String.valueOf(o));
+		}
+	}
+
 	private void doRemoveSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Long serviceId) {
 		synchronized (lock) {
 			List<String> consumed = knownBehaviours.remove(serviceId);
 			if(consumed != null) {
 				consumed.forEach(s -> {
-					List<SmartBehaviour<BrainIoTEvent>> behaviours = consumedToMaps.get(s);
+					Map<SmartBehaviour<BrainIoTEvent>, Filter> behaviours = consumedToMaps.get(s);
 					if(behaviours != null) {
 						behaviours.remove(behaviour);
 						if(behaviours.isEmpty()) {
@@ -132,9 +157,18 @@ public class EventBusImpl implements EventBus {
 		
 		Long serviceId = getServiceId(properties);
 		
+		Filter f;
+		try {
+			f = getFilter(properties);
+		} catch (InvalidSyntaxException e) {
+			// TODO Log a broken behaviour
+			e.printStackTrace();
+			return;
+		}
+		
 		synchronized (lock) {
 			doRemoveSmartBehaviour(behaviour, serviceId);
-			doAddSmartBehaviour(behaviour, list, serviceId);
+			doAddSmartBehaviour(behaviour, f, list, serviceId);
 		}
 	}
 	
@@ -180,16 +214,16 @@ public class EventBusImpl implements EventBus {
 		List<SmartBehaviour<BrainIoTEvent>> behaviours;
 		
 		synchronized (lock) {
-			List<SmartBehaviour<BrainIoTEvent>> tmp = consumedToMaps.get(eventName);
+			Map<SmartBehaviour<BrainIoTEvent>, Filter> tmp = consumedToMaps.get(eventName);
 			if(tmp == null) {
 				behaviours = new ArrayList<>();
 			} else {
-				behaviours = new ArrayList<>(tmp);
+				behaviours = tmp.entrySet().stream()
+						.filter(e -> e.getValue() == null || e.getValue().matches(map))
+						.map(Entry::getKey)
+						.collect(Collectors.toList());
 			}
 		}
-		
-		// TODO apply the filters
-		
 		
 		if(behaviours.isEmpty()) {
 			// TODO log that nobody was listening and call the listener of last resort

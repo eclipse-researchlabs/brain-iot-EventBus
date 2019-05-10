@@ -72,6 +72,12 @@ public class EventBusImplTest {
 		impl.stop();
 	}
 	
+	/**
+	 * Tests that events are delivered to Smart Behaviours
+	 * based on type
+	 * 
+	 * @throws InterruptedException
+	 */
     @Test
     public void testEventSending() throws InterruptedException {
         
@@ -102,6 +108,57 @@ public class EventBusImplTest {
     	
     	assertFalse(semB.tryAcquire(1, TimeUnit.SECONDS));
     	
+    }
+
+    /**
+     * Tests that filtering is applied to message sending/receiving
+     * @throws InterruptedException
+     */
+    @Test
+    public void testEventFiltering() throws InterruptedException {
+    	
+    	Map<String, Object> serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "filter", "(message=foo)");
+    	serviceProperties.put(Constants.SERVICE_ID, 42L);
+    	
+    	
+    	impl.addSmartBehaviour(behaviourA, serviceProperties);
+    	
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "filter", "(message=bar)");
+    	serviceProperties.put(Constants.SERVICE_ID, 43L);
+    	
+    	
+    	impl.addSmartBehaviour(behaviourB, serviceProperties);
+    	
+    	
+    	TestEvent event = new TestEvent();
+    	event.message = "foo";
+    	
+    	impl.deliver(event);
+    	
+    	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(behaviourA).notify(Mockito.argThat(isTestEventWithMessage("foo")));
+    	
+    	assertFalse(semB.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	
+    	event = new TestEvent();
+    	event.message = "bar";
+    	
+    	
+    	impl.deliver(event);
+    	
+    	assertTrue(semB.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(behaviourB).notify(Mockito.argThat(isTestEventWithMessage("bar")));
+    	
+    	assertFalse(semA.tryAcquire(1, TimeUnit.SECONDS));
     }
     
     ArgumentMatcher<BrainIoTEvent> isTestEventWithMessage(String message) {
