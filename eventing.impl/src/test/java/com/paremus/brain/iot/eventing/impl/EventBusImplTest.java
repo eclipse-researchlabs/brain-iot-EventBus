@@ -160,6 +160,30 @@ public class EventBusImplTest {
     	
     	assertFalse(semA.tryAcquire(1, TimeUnit.SECONDS));
     }
+
+    /**
+     * Tests that filtering is applied to message sending/receiving
+     * @throws InterruptedException
+     */
+    @Test
+    public void testEventFilteringWithEmptyStringFilter() throws InterruptedException {
+    	
+    	Map<String, Object> serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "filter", "");
+    	serviceProperties.put(Constants.SERVICE_ID, 42L);
+    	
+    	
+    	impl.addSmartBehaviour(behaviourA, serviceProperties);
+    	
+    	TestEvent event = new TestEvent();
+    	event.message = "foo";
+    	
+    	impl.deliver(event);
+    	
+    	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
+    }
     
     ArgumentMatcher<BrainIoTEvent> isTestEventWithMessage(String message) {
     	return new ArgumentMatcher<BrainIoTEvent>() {
