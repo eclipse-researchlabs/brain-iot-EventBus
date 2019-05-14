@@ -9,6 +9,7 @@ import static java.util.Collections.emptyMap;
 import static org.osgi.util.converter.Converters.standardConverter;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +61,12 @@ public class EventBusImpl implements EventBus {
 	 */
 	private final Map<String, Map<UntypedSmartBehaviour, Filter>> eventTypeToUntypedSBs = 
 			new HashMap<>();
+
+	/**
+	 * List access and mutation must be synchronized on {@link #lock}.
+	 */
+	private final List<UntypedSmartBehaviour> listenersOfLastResort = 
+			new ArrayList<>();
 	
 	/**
 	 * Map access and mutation must be synchronized on {@link #lock}.
@@ -82,7 +89,8 @@ public class EventBusImpl implements EventBus {
 		doAddSmartBehaviour(eventTypeToSBs, behaviour, properties);
 	}
 
-	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC)
+	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC,
+			target="(!(eu.brain.iot.behaviour.consumer.of.last.resort=true))")
 	void addUntypedSmartBehaviour(UntypedSmartBehaviour behaviour, Map<String, Object> properties) {
 		doAddSmartBehaviour(eventTypeToUntypedSBs, behaviour, properties);
 	}
@@ -189,6 +197,20 @@ public class EventBusImpl implements EventBus {
 		}
 	}
 	
+	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC,
+			target="(eu.brain.iot.behaviour.consumer.of.last.resort=true)")
+	void addConsumerOfLastResort(UntypedSmartBehaviour behaviour, Map<String, Object> properties) {
+		synchronized (lock) {
+			listenersOfLastResort.add(behaviour);
+		}
+	}
+
+	void removeConsumerOfLastResort(UntypedSmartBehaviour behaviour, Map<String, Object> properties) {
+		synchronized (lock) {
+			listenersOfLastResort.remove(behaviour);
+		}
+	}
+	
 	@Activate
 	void start() {
 		EventThread thread = new EventThread();
@@ -245,18 +267,17 @@ public class EventBusImpl implements EventBus {
 					.filter(e -> e.getValue() == null || e.getValue().matches(map))
 					.map(Entry::getKey)
 					.collect(Collectors.toList());
+			
+			if(behaviours.isEmpty() && untypedBehaviours.isEmpty()) {
+				System.out.println("Listeners of last resort are being used for event " + eventName);
+				untypedBehaviours.addAll(listenersOfLastResort);
+			}
 		}
 		
-		if(behaviours.isEmpty()) {
-			// TODO log that nobody was listening and call the listener of last resort
-			System.out.println("Listener of last resort is not yet implemented");
-		} else {
-			behaviours.forEach(sb -> queue.add(new TypedEventTask(eventName, 
+		behaviours.forEach(sb -> queue.add(new TypedEventTask(eventName, 
 					event.getClass(), map, sb)));
-			untypedBehaviours.forEach(sb -> queue.add(new UntypedEventTask(eventName, 
+		untypedBehaviours.forEach(sb -> queue.add(new UntypedEventTask(eventName, 
 					 map, sb)));
-		}
-		
 		
 	}
 

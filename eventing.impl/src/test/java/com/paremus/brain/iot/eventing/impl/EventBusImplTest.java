@@ -24,6 +24,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.osgi.framework.Constants;
 
+import eu.brain.iot.eventing.annotation.ConsumerOfLastResort;
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.SmartBehaviour;
@@ -254,6 +255,59 @@ public class EventBusImplTest {
     	
     	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
     }
+    
+    /**
+     * Tests that the consumer of last resort gets called appropriately
+     * @throws InterruptedException
+     */
+    @Test
+    public void testConsumerOfLastResort() throws InterruptedException {
+    	
+    	Map<String, Object> serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "filter", "(message=foo)");
+    	serviceProperties.put(Constants.SERVICE_ID, 42L);
+    	
+    	
+    	impl.addSmartBehaviour(behaviourA, serviceProperties);
+    	
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(ConsumerOfLastResort.PREFIX_ + "consumer.of.last.resort", true);
+    	serviceProperties.put(Constants.SERVICE_ID, 45L);
+    	
+    	impl.addConsumerOfLastResort(untypedBehaviourA, serviceProperties);
+    	
+    	
+    	TestEvent event = new TestEvent();
+    	event.message = "foo";
+    	
+    	impl.deliver(event);
+    	
+    	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(behaviourA).notify(Mockito.argThat(isTestEventWithMessage("foo")));
+    	
+    	assertFalse(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	
+    	event = new TestEvent();
+    	event.message = "bar";
+    	
+    	
+    	impl.deliver(event);
+    	
+    	assertTrue(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(untypedBehaviourA).notify(Mockito.anyString(), 
+    			Mockito.argThat(isUntypedTestEventWithMessage("bar")));
+
+    	
+    	assertFalse(semA.tryAcquire(1, TimeUnit.SECONDS));
+
+    }
+    
     
     ArgumentMatcher<BrainIoTEvent> isTestEventWithMessage(String message) {
     	return new ArgumentMatcher<BrainIoTEvent>() {
