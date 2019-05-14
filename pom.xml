@@ -284,5 +284,6 @@ Bundle-SymbolicName: ${project.groupId}.${project.artifactId}
     <module>eventing.api</module>
     <module>eventing.impl</module>
     <module>eventing-example</module>
+    <module>eventing.test</module>
   </modules>
 </project>

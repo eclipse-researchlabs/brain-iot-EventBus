@@ -122,7 +122,7 @@ public class EventBusImpl implements EventBus {
 	private Filter getFilter(Map<String, Object> properties) throws InvalidSyntaxException {
 		Object o = properties.get(SmartBehaviourDefinition.PREFIX_ + "filter");
 		
-		if(o == null) {
+		if(o == null || "".equals(o)) {
 			return null;
 		} else {
 			return FrameworkUtil.createFilter(String.valueOf(o));

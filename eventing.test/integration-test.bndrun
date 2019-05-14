@@ -1,0 +1,33 @@
+-standalone: target/index.xml
+
+-resolve.effective: active
+
+# Run all integration tests which are named xyzTest
+#[[Test-Cases: ${classes;CONCRETE;PUBLIC;NAMED;*Test}]]#
+
+# A temporary inclusion until an R7 framework is available
+Import-Package: org.osgi.framework.*;version="[1.8,2)",*
+
+
+# Used by Objenesis/Mockito and not actually optional
+-runsystempackages: sun.reflect
+
+-runfw: org.eclipse.osgi
+-runee: JavaSE-1.8
+
+-runrequires: \
+	osgi.identity;filter:='(osgi.identity=com.paremus.brain.iot.eventing.test)',\
+	osgi.identity;filter:='(osgi.identity=com.paremus.brain.iot.eventing.impl)',\
+	bnd.identity;id='org.osgi.util.function'
+-runbundles: \
+	com.paremus.brain.iot.eventing.api;version='[0.0.1,0.0.2)',\
+	com.paremus.brain.iot.eventing.impl;version='[0.0.1,0.0.2)',\
+	org.apache.felix.scr;version='[2.1.10,2.1.11)',\
+	org.osgi.util.converter;version='[1.0.0,1.0.1)',\
+	com.paremus.brain.iot.eventing.test;version='[0.0.1,0.0.2)',\
+	net.bytebuddy.byte-buddy;version='[1.9.3,1.9.4)',\
+	net.bytebuddy.byte-buddy-agent;version='[1.9.3,1.9.4)',\
+	org.apache.servicemix.bundles.junit;version='[4.12.0,4.12.1)',\
+	org.mockito.mockito-core;version='[2.23.4,2.23.5)',\
+	org.objenesis;version='[2.6.0,2.6.1)',\
+	org.osgi.util.function;version='[1.1.0,1.1.1)'
