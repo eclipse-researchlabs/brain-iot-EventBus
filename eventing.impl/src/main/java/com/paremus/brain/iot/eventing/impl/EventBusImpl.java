@@ -5,11 +5,10 @@
 
 package com.paremus.brain.iot.eventing.impl;
 
+import static java.util.Collections.emptyMap;
 import static org.osgi.util.converter.Converters.standardConverter;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +34,7 @@ import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.EventBus;
 import eu.brain.iot.eventing.api.SmartBehaviour;
+import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
 
 @Component
 public class EventBusImpl implements EventBus {
@@ -51,16 +51,23 @@ public class EventBusImpl implements EventBus {
 	 * Map access and mutation must be synchronized on {@link #lock}.
 	 * Values from the map should be copied as the contents are not thread safe.
 	 */
-	private final Map<String, Map<SmartBehaviour<BrainIoTEvent>, Filter>> consumedToMaps = 
+	private final Map<String, Map<SmartBehaviour<BrainIoTEvent>, Filter>> eventTypeToSBs = 
 			new HashMap<>();
-
+	
+	/**
+	 * Map access and mutation must be synchronized on {@link #lock}.
+	 * Values from the map should be copied as the contents are not thread safe.
+	 */
+	private final Map<String, Map<UntypedSmartBehaviour, Filter>> eventTypeToUntypedSBs = 
+			new HashMap<>();
+	
 	/**
 	 * Map access and mutation must be synchronized on {@link #lock}.
 	 * Values from the map should be copied as the contents are not thread safe.
 	 */
 	private final Map<Long, List<String>> knownBehaviours = new HashMap<>();
 	
-	private final BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
+	private final BlockingQueue<EventTask> queue = new LinkedBlockingQueue<>();
 	
 	/**
 	 * 
@@ -72,6 +79,16 @@ public class EventBusImpl implements EventBus {
 
 	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC)
 	void addSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Map<String, Object> properties) {
+		doAddSmartBehaviour(eventTypeToSBs, behaviour, properties);
+	}
+
+	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC)
+	void addUntypedSmartBehaviour(UntypedSmartBehaviour behaviour, Map<String, Object> properties) {
+		doAddSmartBehaviour(eventTypeToUntypedSBs, behaviour, properties);
+	}
+	
+	private <T> void doAddSmartBehaviour(Map<String, Map<T, Filter>> map, T behaviour, 
+			Map<String, Object> properties) {
 		Object consumed = properties.get(SmartBehaviourDefinition.PREFIX_ + "consumed");
 		
 		if(consumed == null) {
@@ -92,17 +109,17 @@ public class EventBusImpl implements EventBus {
 			return;
 		}
 		
-		doAddSmartBehaviour(behaviour, f, list, serviceId);
+		doAddToMap(map, behaviour, f, list, serviceId);
 	}
 
-	private void doAddSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Filter filter, 
+	private <T> void doAddToMap(Map<String, Map<T, Filter>> map, T behaviour, Filter filter, 
 			List<String> list, Long serviceId) {
 		synchronized (lock) {
 			knownBehaviours.put(serviceId, list);
 			
 			list.forEach(s -> {
-				Map<SmartBehaviour<BrainIoTEvent>, Filter> behaviours = 
-						consumedToMaps.computeIfAbsent(s, x -> new HashMap<>());
+				Map<T, Filter> behaviours = 
+						map.computeIfAbsent(s, x -> new HashMap<>());
 				behaviours.put(behaviour, filter);
 			});
 		}
@@ -112,7 +129,14 @@ public class EventBusImpl implements EventBus {
         
 		Long serviceId = getServiceId(properties);
 		
-		doRemoveSmartBehaviour(behaviour, serviceId);
+		doRemoveSmartBehaviour(eventTypeToSBs, behaviour, serviceId);
+	}
+
+	void removeUntypedSmartBehaviour(UntypedSmartBehaviour behaviour, Map<String, Object> properties) {
+		
+		Long serviceId = getServiceId(properties);
+		
+		doRemoveSmartBehaviour(eventTypeToUntypedSBs, behaviour, serviceId);
 	}
 
 	private Long getServiceId(Map<String, Object> properties) {
@@ -129,16 +153,17 @@ public class EventBusImpl implements EventBus {
 		}
 	}
 
-	private void doRemoveSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Long serviceId) {
+	private <T> void doRemoveSmartBehaviour(Map<String, Map<T, Filter>> map, T behaviour, 
+			Long serviceId) {
 		synchronized (lock) {
 			List<String> consumed = knownBehaviours.remove(serviceId);
 			if(consumed != null) {
 				consumed.forEach(s -> {
-					Map<SmartBehaviour<BrainIoTEvent>, Filter> behaviours = consumedToMaps.get(s);
+					Map<T, Filter> behaviours = map.get(s);
 					if(behaviours != null) {
 						behaviours.remove(behaviour);
 						if(behaviours.isEmpty()) {
-							consumedToMaps.remove(s);
+							map.remove(s);
 						}
 					}
 				});
@@ -147,28 +172,20 @@ public class EventBusImpl implements EventBus {
 	}
 	
 	void updatedSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Map<String, Object> properties) {
-		Object consumed = properties.get(SmartBehaviourDefinition.PREFIX_ + "consumed");
-		
-		if(consumed == null) {
-			consumed = Collections.emptyList();
-		}
-		
-		List<String> list = standardConverter().convert(consumed).to(LIST_OF_STRINGS);
-		
+		doUpdatedSmartBehaviour(eventTypeToSBs, behaviour, properties);
+	}
+	
+	void updatedUntypedSmartBehaviour(UntypedSmartBehaviour behaviour, Map<String, Object> properties) {
+		doUpdatedSmartBehaviour(eventTypeToUntypedSBs, behaviour, properties);
+	}
+	
+	private <T> void doUpdatedSmartBehaviour(Map<String, Map<T, Filter>> map, T behaviour, 
+			Map<String, Object> properties) {
 		Long serviceId = getServiceId(properties);
 		
-		Filter f;
-		try {
-			f = getFilter(properties);
-		} catch (InvalidSyntaxException e) {
-			// TODO Log a broken behaviour
-			e.printStackTrace();
-			return;
-		}
-		
 		synchronized (lock) {
-			doRemoveSmartBehaviour(behaviour, serviceId);
-			doAddSmartBehaviour(behaviour, f, list, serviceId);
+			doRemoveSmartBehaviour(map, behaviour, serviceId);
+			doAddSmartBehaviour(map, behaviour, properties);
 		}
 	}
 	
@@ -197,8 +214,9 @@ public class EventBusImpl implements EventBus {
 		try {
 			thread.join(2000);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// This is not an error, it just means that we should stop
+			// waiting and let the interrupt propagate
+			Thread.currentThread().interrupt();
 		}
 	}
 	
@@ -212,24 +230,31 @@ public class EventBusImpl implements EventBus {
 		Map<String, Object> map = standardConverter().convert(event).sourceAsDTO().to(MAP_WITH_STRING_KEYS);
 		
 		List<SmartBehaviour<BrainIoTEvent>> behaviours;
+
+		List<UntypedSmartBehaviour> untypedBehaviours;
 		
 		synchronized (lock) {
-			Map<SmartBehaviour<BrainIoTEvent>, Filter> tmp = consumedToMaps.get(eventName);
-			if(tmp == null) {
-				behaviours = new ArrayList<>();
-			} else {
-				behaviours = tmp.entrySet().stream()
+			behaviours = eventTypeToSBs.getOrDefault(eventName, emptyMap())
+					.entrySet().stream()
 						.filter(e -> e.getValue() == null || e.getValue().matches(map))
 						.map(Entry::getKey)
 						.collect(Collectors.toList());
-			}
+
+			untypedBehaviours = eventTypeToUntypedSBs.getOrDefault(eventName, emptyMap())
+					.entrySet().stream()
+					.filter(e -> e.getValue() == null || e.getValue().matches(map))
+					.map(Entry::getKey)
+					.collect(Collectors.toList());
 		}
 		
 		if(behaviours.isEmpty()) {
 			// TODO log that nobody was listening and call the listener of last resort
 			System.out.println("Listener of last resort is not yet implemented");
 		} else {
-			behaviours.forEach(sb -> queue.add(new Event(eventName, event.getClass(), map, sb)));
+			behaviours.forEach(sb -> queue.add(new TypedEventTask(eventName, 
+					event.getClass(), map, sb)));
+			untypedBehaviours.forEach(sb -> queue.add(new UntypedEventTask(eventName, 
+					 map, sb)));
 		}
 		
 		
@@ -270,7 +295,7 @@ public class EventBusImpl implements EventBus {
 			
 			while(running.get()) {
 				
-				Event take;
+				EventTask take;
 				try {
 					take = queue.take();
 				} catch (InterruptedException e) {
@@ -279,49 +304,10 @@ public class EventBusImpl implements EventBus {
 					continue;
 				}
 				
-				Class<?> targetEventClass;
-				try {
-					targetEventClass = take.eventProcessor.getClass().getClassLoader().loadClass(take.eventType);
-				} catch (ClassNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					targetEventClass = take.eventClassOfLastResort;
-				}
-				
-				if(BrainIoTEvent.class.isAssignableFrom(targetEventClass)) {
-					// All good
-					
-					BrainIoTEvent event = (BrainIoTEvent) standardConverter()
-							.convert(take.eventProps).targetAsDTO().to(targetEventClass);
-					
-					try {
-						take.eventProcessor.notify(event);
-					} catch (Exception e) {
-						// TODO log this, also blacklist?
-					}
-					
-				} else {
-					// The target class is not a BrainIoTEvent - log and fail, possibly blacklist
-				}
+				take.notifyListener();
 			}
 			
 		}
 		
-	}
-	
-	private static class Event {
-		private final String eventType;
-		private final Class<?> eventClassOfLastResort;
-		private final Map<String, Object> eventProps;
-		private final SmartBehaviour<BrainIoTEvent> eventProcessor;
-		
-		public Event(String eventType, Class<?> eventClassOfLastResort, Map<String, Object> eventProps,
-				SmartBehaviour<BrainIoTEvent> eventProcessor) {
-			super();
-			this.eventType = eventType;
-			this.eventClassOfLastResort = eventClassOfLastResort;
-			this.eventProps = eventProps;
-			this.eventProcessor = eventProcessor;
-		}
 	}
 }

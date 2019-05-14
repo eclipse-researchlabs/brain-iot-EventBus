@@ -27,6 +27,7 @@ import org.osgi.framework.Constants;
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.SmartBehaviour;
+import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
 
 
 public class EventBusImplTest {
@@ -45,8 +46,12 @@ public class EventBusImplTest {
 	
 	@Mock
 	SmartBehaviour<BrainIoTEvent> behaviourA, behaviourB;
+
+	@Mock
+	UntypedSmartBehaviour untypedBehaviourA, untypedBehaviourB;
 	
-	Semaphore semA = new Semaphore(0), semB = new Semaphore(0);
+	Semaphore semA = new Semaphore(0), semB = new Semaphore(0),
+			untypedSemA = new Semaphore(0), untypedSemB = new Semaphore(0);
 	
 	EventBusImpl impl;
 	
@@ -62,6 +67,16 @@ public class EventBusImplTest {
 				semB.release();
 				return null;
 			}).when(behaviourB).notify(Mockito.any());
+
+		Mockito.doAnswer(i -> {
+				untypedSemA.release();
+				return null;
+			}).when(untypedBehaviourA).notify(Mockito.anyString(), Mockito.any());
+		
+		Mockito.doAnswer(i -> {
+				untypedSemB.release();
+				return null;
+			}).when(untypedBehaviourB).notify(Mockito.anyString(), Mockito.any());
 		
 		impl = new EventBusImpl();
 		impl.start();
@@ -100,6 +115,22 @@ public class EventBusImplTest {
     	
     	impl.addSmartBehaviour(behaviourB, serviceProperties);
     	
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(Constants.SERVICE_ID, 44L);
+    	
+    	
+    	impl.addUntypedSmartBehaviour(untypedBehaviourA, serviceProperties);
+
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent2.class.getName());
+    	serviceProperties.put(Constants.SERVICE_ID, 45L);
+    	
+    	
+    	impl.addUntypedSmartBehaviour(untypedBehaviourB, serviceProperties);
+    	
     	impl.deliver(event);
     	
     	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
@@ -107,6 +138,13 @@ public class EventBusImplTest {
     	Mockito.verify(behaviourA).notify(Mockito.argThat(isTestEventWithMessage("boo")));
     	
     	assertFalse(semB.tryAcquire(1, TimeUnit.SECONDS));
+
+    	assertTrue(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(untypedBehaviourA).notify(Mockito.anyString(), 
+    			Mockito.argThat(isUntypedTestEventWithMessage("boo")));
+    	
+    	assertFalse(untypedSemB.tryAcquire(1, TimeUnit.SECONDS));
     	
     }
 
@@ -132,8 +170,25 @@ public class EventBusImplTest {
     	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "filter", "(message=bar)");
     	serviceProperties.put(Constants.SERVICE_ID, 43L);
     	
-    	
     	impl.addSmartBehaviour(behaviourB, serviceProperties);
+
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "filter", "(message=foo)");
+    	serviceProperties.put(Constants.SERVICE_ID, 44L);
+    	
+    	
+    	impl.addUntypedSmartBehaviour(untypedBehaviourA, serviceProperties);
+    	
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "filter", "(message=bar)");
+    	serviceProperties.put(Constants.SERVICE_ID, 45L);
+    	
+    	
+    	impl.addUntypedSmartBehaviour(untypedBehaviourB, serviceProperties);
     	
     	
     	TestEvent event = new TestEvent();
@@ -146,6 +201,13 @@ public class EventBusImplTest {
     	Mockito.verify(behaviourA).notify(Mockito.argThat(isTestEventWithMessage("foo")));
     	
     	assertFalse(semB.tryAcquire(1, TimeUnit.SECONDS));
+
+    	assertTrue(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(untypedBehaviourA).notify(Mockito.anyString(), 
+    			Mockito.argThat(isUntypedTestEventWithMessage("foo")));
+    	
+    	assertFalse(untypedSemB.tryAcquire(1, TimeUnit.SECONDS));
     	
     	
     	event = new TestEvent();
@@ -159,6 +221,14 @@ public class EventBusImplTest {
     	Mockito.verify(behaviourB).notify(Mockito.argThat(isTestEventWithMessage("bar")));
     	
     	assertFalse(semA.tryAcquire(1, TimeUnit.SECONDS));
+
+    	
+    	assertTrue(untypedSemB.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(untypedBehaviourB).notify(Mockito.anyString(), 
+    			Mockito.argThat(isUntypedTestEventWithMessage("bar")));
+    	
+    	assertFalse(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
     }
 
     /**
@@ -194,6 +264,16 @@ public class EventBusImplTest {
 						message.equals(((TestEvent)argument).message);
 			}
 		};
+    }
+
+    ArgumentMatcher<Map<String, Object>> isUntypedTestEventWithMessage(String message) {
+    	return new ArgumentMatcher<Map<String, Object>>() {
+    		
+    		@Override
+    		public boolean matches(Map<String, Object> argument) {
+    			return argument != null && message.equals(argument.get("message"));
+    		}
+    	};
     }
     
 }
