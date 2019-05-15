@@ -244,57 +244,69 @@ public class EventBusImpl implements EventBus {
 	
 	@Override
 	public void deliver(BrainIoTEvent event) {
+		Class<?> eventClass = event.getClass();
+		deliver(eventClass.getName(), 
+				standardConverter().convert(event).sourceAsDTO().to(MAP_WITH_STRING_KEYS),
+				eventClass);
+	}
+	
+	@Override
+	public void deliver(String eventType, Map<String, Object> eventData) {
+		deliver(eventType, eventData, null);
+	}
+	
+	private void deliver(String eventType, Map<String, Object> eventData, Class<?> eventClass) {
 		
-		autoPopulateEventData(event);
-		
-		String eventName = event.getClass().getName();
-		
-		Map<String, Object> map = standardConverter().convert(event).sourceAsDTO().to(MAP_WITH_STRING_KEYS);
+		autoPopulateEventData(eventData);
 		
 		List<SmartBehaviour<BrainIoTEvent>> behaviours;
 
 		List<UntypedSmartBehaviour> untypedBehaviours;
 		
 		synchronized (lock) {
-			behaviours = eventTypeToSBs.getOrDefault(eventName, emptyMap())
+			behaviours = eventTypeToSBs.getOrDefault(eventType, emptyMap())
 					.entrySet().stream()
-						.filter(e -> e.getValue() == null || e.getValue().matches(map))
+						.filter(e -> e.getValue() == null || e.getValue().matches(eventData))
 						.map(Entry::getKey)
 						.collect(Collectors.toList());
 
-			untypedBehaviours = eventTypeToUntypedSBs.getOrDefault(eventName, emptyMap())
+			untypedBehaviours = eventTypeToUntypedSBs.getOrDefault(eventType, emptyMap())
 					.entrySet().stream()
-					.filter(e -> e.getValue() == null || e.getValue().matches(map))
+					.filter(e -> e.getValue() == null || e.getValue().matches(eventData))
 					.map(Entry::getKey)
 					.collect(Collectors.toList());
 			
 			if(behaviours.isEmpty() && untypedBehaviours.isEmpty()) {
-				System.out.println("Listeners of last resort are being used for event " + eventName);
+				System.out.println("Listeners of last resort are being used for event " + eventType);
 				untypedBehaviours.addAll(listenersOfLastResort);
 			}
 		}
 		
-		behaviours.forEach(sb -> queue.add(new TypedEventTask(eventName, 
-					event.getClass(), map, sb)));
-		untypedBehaviours.forEach(sb -> queue.add(new UntypedEventTask(eventName, 
-					 map, sb)));
+		behaviours.forEach(sb -> queue.add(new TypedEventTask(eventType, 
+					eventClass, eventData, sb)));
+		untypedBehaviours.forEach(sb -> queue.add(new UntypedEventTask(eventType, 
+					eventData, sb)));
 		
 	}
 
-	private void autoPopulateEventData(BrainIoTEvent event) {
-		if(event.timestamp == null) {
-			event.timestamp = Instant.now();
-			event.securityToken = null;
+	private void autoPopulateEventData(Map<String, Object> eventData) {
+		
+		Object o = eventData.get("timestamp");
+		if(o == null) {
+			eventData.put("timestamp", Instant.now());
+			eventData.remove("securityToken");
 		}
 		
-		if(event.sourceNode == null) {
+		o = eventData.get("sourceNode");
+		if(o == null) {
 			// TODO add the source node
-			event.securityToken = null;
+			eventData.remove("securityToken");
 		}
 		
-		if(event.securityToken == null) {
+		o = eventData.get("securityToken");
+		if(o == null) {
 			// TODO apply proper security
-			event.securityToken = new byte[] {1,2,3};
+			eventData.put("securityToken",new byte[] {1,2,3});
 		}
 	}
 	

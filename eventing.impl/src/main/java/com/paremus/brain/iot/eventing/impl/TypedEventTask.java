@@ -30,7 +30,12 @@ class TypedEventTask extends EventTask {
 		} catch (ClassNotFoundException e) {
 			// TODO LOG a warning that the listener doesn't have access to the type
 			e.printStackTrace();
-			targetEventClass = eventClassOfLastResort;
+			if(eventClassOfLastResort != null) {
+				targetEventClass = eventClassOfLastResort;
+			} else {
+				// TODO log an error that we can't deliver the event
+				return;
+			}
 		}
 		
 		if(BrainIoTEvent.class.isAssignableFrom(targetEventClass)) {

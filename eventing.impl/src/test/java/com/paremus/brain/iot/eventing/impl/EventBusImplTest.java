@@ -23,6 +23,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.osgi.framework.Constants;
+import org.osgi.util.converter.Converters;
 
 import eu.brain.iot.eventing.annotation.ConsumerOfLastResort;
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
@@ -140,6 +141,68 @@ public class EventBusImplTest {
     	
     	assertFalse(semB.tryAcquire(1, TimeUnit.SECONDS));
 
+    	assertTrue(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(untypedBehaviourA).notify(Mockito.anyString(), 
+    			Mockito.argThat(isUntypedTestEventWithMessage("boo")));
+    	
+    	assertFalse(untypedSemB.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    }
+
+    /**
+     * Tests that events are delivered to Smart Behaviours
+     * based on type
+     * 
+     * @throws InterruptedException
+     */
+    @SuppressWarnings("unchecked")
+	@Test
+    public void testUntypedEventSending() throws InterruptedException {
+    	
+    	TestEvent event = new TestEvent();
+    	event.message = "boo";
+    	
+    	Map<String, Object> serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(Constants.SERVICE_ID, 42L);
+    	
+    	
+    	impl.addSmartBehaviour(behaviourA, serviceProperties);
+    	
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent2.class.getName());
+    	serviceProperties.put(Constants.SERVICE_ID, 43L);
+    	
+    	
+    	impl.addSmartBehaviour(behaviourB, serviceProperties);
+    	
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put(Constants.SERVICE_ID, 44L);
+    	
+    	
+    	impl.addUntypedSmartBehaviour(untypedBehaviourA, serviceProperties);
+    	
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent2.class.getName());
+    	serviceProperties.put(Constants.SERVICE_ID, 45L);
+    	
+    	
+    	impl.addUntypedSmartBehaviour(untypedBehaviourB, serviceProperties);
+    	
+    	impl.deliver(event.getClass().getName(), Converters.standardConverter().convert(event).to(Map.class));
+    	
+    	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(behaviourA).notify(Mockito.argThat(isTestEventWithMessage("boo")));
+    	
+    	assertFalse(semB.tryAcquire(1, TimeUnit.SECONDS));
+    	
     	assertTrue(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
     	
     	Mockito.verify(untypedBehaviourA).notify(Mockito.anyString(), 
