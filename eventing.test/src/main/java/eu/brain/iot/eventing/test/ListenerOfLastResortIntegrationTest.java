@@ -16,8 +16,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
+import eu.brain.iot.eventing.annotation.ConsumerOfLastResort;
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.SmartBehaviour;
+import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
 /**
  * This is a JUnit test that will be run inside an OSGi framework.
  * 
@@ -26,25 +28,30 @@ import eu.brain.iot.eventing.api.SmartBehaviour;
  * the result on the bundle(s) being tested.
  */
 @RunWith(JUnit4.class)
-public class FilterIntegrationTest extends AbstractIntegrationTest {
+public class ListenerOfLastResortIntegrationTest extends AbstractIntegrationTest {
     
+	   /**
+     * Tests that the consumer of last resort gets called appropriately
+     * @throws InterruptedException
+     */
     @Test
-    public void testFilteredListener() throws Exception {
+    public void testConsumerOfLastResort() throws InterruptedException {
+    	
     	Dictionary<String, Object> props = new Hashtable<>();
     	props.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
     	props.put(SmartBehaviourDefinition.PREFIX_ + "filter", "(message=foo)");
     	
     	
         regs.add(bundle.getBundleContext().registerService(SmartBehaviour.class, behaviourA, props));
-        
+    	
         props = new Hashtable<>();
-    	props.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
-    	props.put(SmartBehaviourDefinition.PREFIX_ + "filter", "(message=bar)");
+    	
+        props.put(ConsumerOfLastResort.PREFIX_ + "consumer.of.last.resort", true);
+    	
+        regs.add(bundle.getBundleContext().registerService(UntypedSmartBehaviour.class, untypedBehaviourA, props));
     	
     	
-        regs.add(bundle.getBundleContext().registerService(SmartBehaviour.class, behaviourB, props));
-        
-        TestEvent event = new TestEvent();
+    	TestEvent event = new TestEvent();
     	event.message = "foo";
     	
     	impl.deliver(event);
@@ -53,7 +60,7 @@ public class FilterIntegrationTest extends AbstractIntegrationTest {
     	
     	Mockito.verify(behaviourA).notify(Mockito.argThat(isTestEventWithMessage("foo")));
     	
-    	assertFalse(semB.tryAcquire(1, TimeUnit.SECONDS));
+    	assertFalse(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
     	
     	
     	event = new TestEvent();
@@ -62,28 +69,14 @@ public class FilterIntegrationTest extends AbstractIntegrationTest {
     	
     	impl.deliver(event);
     	
-    	assertTrue(semB.tryAcquire(1, TimeUnit.SECONDS));
+    	assertTrue(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
     	
-    	Mockito.verify(behaviourB).notify(Mockito.argThat(isTestEventWithMessage("bar")));
+    	Mockito.verify(untypedBehaviourA).notify(Mockito.anyString(), 
+    			Mockito.argThat(isUntypedTestEventWithMessage("bar")));
+
     	
     	assertFalse(semA.tryAcquire(1, TimeUnit.SECONDS));
-    }
 
-    @Test
-    public void testFilteredListenerEmptyString() throws Exception {
-    	Dictionary<String, Object> props = new Hashtable<>();
-    	props.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
-    	props.put(SmartBehaviourDefinition.PREFIX_ + "filter", "");
-    	
-    	
-    	regs.add(bundle.getBundleContext().registerService(SmartBehaviour.class, behaviourA, props));
-    	
-    	TestEvent event = new TestEvent();
-    	event.message = "foo";
-    	
-    	impl.deliver(event);
-    	
-    	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
     }
     
 }

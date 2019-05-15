@@ -18,6 +18,7 @@ import org.mockito.Mockito;
 
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.SmartBehaviour;
+import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
 /**
  * This is a JUnit test that will be run inside an OSGi framework.
  * 
@@ -26,8 +27,77 @@ import eu.brain.iot.eventing.api.SmartBehaviour;
  * the result on the bundle(s) being tested.
  */
 @RunWith(JUnit4.class)
-public class FilterIntegrationTest extends AbstractIntegrationTest {
+public class EventDeliveryIntegrationTest extends AbstractIntegrationTest {
     
+	
+	/**
+	 * Tests that events are delivered to Smart Behaviours
+	 * based on type
+	 * 
+	 * @throws InterruptedException
+	 */
+    @Test
+    public void testEventReceiving() throws InterruptedException {
+        
+    	TestEvent event = new TestEvent();
+    	event.message = "boo";
+    	
+    	Dictionary<String, Object> props = new Hashtable<>();
+    	props.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	
+    	regs.add(bundle.getBundleContext().registerService(SmartBehaviour.class, behaviourA, props));
+
+    	props = new Hashtable<>();
+    	
+    	props.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent2.class.getName());
+    	
+    	regs.add(bundle.getBundleContext().registerService(SmartBehaviour.class, behaviourB, props));
+    	
+    	impl.deliver(event);
+    	
+    	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
+
+    	Mockito.verify(behaviourA).notify(Mockito.argThat(isTestEventWithMessage("boo")));
+    	
+    	assertFalse(semB.tryAcquire(1, TimeUnit.SECONDS));
+
+    }
+
+    /**
+     * Tests that events are delivered to Smart Behaviours
+     * based on type
+     * 
+     * @throws InterruptedException
+     */
+    @Test
+    public void testEventReceivingUntyped() throws InterruptedException {
+    	
+    	TestEvent event = new TestEvent();
+    	event.message = "boo";
+    	
+    	Dictionary<String, Object> props = new Hashtable<>();
+    	props.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	
+    	regs.add(bundle.getBundleContext().registerService(UntypedSmartBehaviour.class, untypedBehaviourA, props));
+    	
+    	props = new Hashtable<>();
+    	
+    	props.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent2.class.getName());
+    	
+    	regs.add(bundle.getBundleContext().registerService(UntypedSmartBehaviour.class, untypedBehaviourB, props));
+    	
+    	
+    	impl.deliver(event);
+    	
+    	assertTrue(untypedSemA.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    	Mockito.verify(untypedBehaviourA).notify(Mockito.anyString(), 
+    			Mockito.argThat(isUntypedTestEventWithMessage("boo")));
+    	
+    	assertFalse(untypedSemB.tryAcquire(1, TimeUnit.SECONDS));
+    	
+    }
+	
     @Test
     public void testFilteredListener() throws Exception {
     	Dictionary<String, Object> props = new Hashtable<>();
