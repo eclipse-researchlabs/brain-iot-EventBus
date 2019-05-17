@@ -24,9 +24,7 @@ import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.util.tracker.ServiceTracker;
 
-import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.EventBus;
-import eu.brain.iot.eventing.api.SmartBehaviour;
 import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
 /**
  * This is a JUnit test that will be run inside an OSGi framework.
@@ -43,7 +41,9 @@ public abstract class AbstractIntegrationTest {
 	public MockitoRule rule = MockitoJUnit.rule();
 	
 	@Mock
-	protected SmartBehaviour<BrainIoTEvent> behaviourA, behaviourB;
+	protected TestEventConsumer behaviourA, behaviourB;
+	@Mock
+	protected TestEvent2Consumer behaviourA2, behaviourB2;
 	@Mock
 	protected UntypedSmartBehaviour untypedBehaviourA, untypedBehaviourB;
 	
@@ -69,6 +69,16 @@ public abstract class AbstractIntegrationTest {
 			semB.release();
 			return null;
 		}).when(behaviourB).notify(Mockito.any());
+
+        Mockito.doAnswer(i -> {
+        	semA.release();
+        	return null;
+        }).when(behaviourA2).notify(Mockito.any());
+        
+        Mockito.doAnswer(i -> {
+        	semB.release();
+        	return null;
+        }).when(behaviourB2).notify(Mockito.any());
         
         Mockito.doAnswer(i -> {
 			untypedSemA.release();
@@ -99,15 +109,24 @@ public abstract class AbstractIntegrationTest {
         });
     }
     
-    protected ArgumentMatcher<BrainIoTEvent> isTestEventWithMessage(String message) {
-    	return new ArgumentMatcher<BrainIoTEvent>() {
+    protected ArgumentMatcher<TestEvent> isTestEventWithMessage(String message) {
+    	return new ArgumentMatcher<TestEvent>() {
 			
 			@Override
-			public boolean matches(BrainIoTEvent argument) {
-				return argument instanceof TestEvent && 
-						message.equals(((TestEvent)argument).message);
+			public boolean matches(TestEvent argument) {
+				return message.equals(argument.message);
 			}
 		};
+    }
+
+    protected ArgumentMatcher<TestEvent2> isTestEvent2WithMessage(String message) {
+    	return new ArgumentMatcher<TestEvent2>() {
+    		
+    		@Override
+    		public boolean matches(TestEvent2 argument) {
+    			return message.equals(argument.subEvent.message);
+    		}
+    	};
     }
     
     protected ArgumentMatcher<Map<String, Object>> isUntypedTestEventWithMessage(String message) {

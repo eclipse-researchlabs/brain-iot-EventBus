@@ -2,9 +2,10 @@
  * Unauthorized copying of this file, via any medium is strictly prohibited
  * Proprietary and confidential
  */
+package eu.brain.iot.eventing.test;
 
-package com.paremus.brain.iot.eventing.impl;
+import eu.brain.iot.eventing.api.SmartBehaviour;
 
-abstract class EventTask {
-	public abstract void notifyListener();
+public interface TestEvent2Consumer extends SmartBehaviour<TestEvent2> {
+
 }

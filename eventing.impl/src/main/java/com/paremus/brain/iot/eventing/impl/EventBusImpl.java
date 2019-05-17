@@ -42,10 +42,7 @@ public class EventBusImpl implements EventBus {
 	
 	private static final TypeReference<List<String>> LIST_OF_STRINGS = 
 			new TypeReference<List<String>>() {};
-	private static final TypeReference<Map<String, Object>> MAP_WITH_STRING_KEYS = 
-			new TypeReference<Map<String, Object>>() {};
 	
-			
 	private final Object lock = new Object();
 	
 	/**
@@ -246,13 +243,13 @@ public class EventBusImpl implements EventBus {
 	public void deliver(BrainIoTEvent event) {
 		Class<?> eventClass = event.getClass();
 		deliver(eventClass.getName(), 
-				standardConverter().convert(event).sourceAsDTO().to(MAP_WITH_STRING_KEYS),
+				EventConverter.convert(event),
 				eventClass);
 	}
 	
 	@Override
 	public void deliver(String eventType, Map<String, Object> eventData) {
-		deliver(eventType, eventData, null);
+		deliver(eventType, EventConverter.convert(eventData), null);
 	}
 	
 	private void deliver(String eventType, Map<String, Object> eventData, Class<?> eventClass) {
