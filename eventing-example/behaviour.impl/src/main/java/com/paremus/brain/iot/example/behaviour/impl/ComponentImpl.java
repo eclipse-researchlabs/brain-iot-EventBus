@@ -24,7 +24,7 @@ import eu.brain.iot.eventing.api.SmartBehaviour;
  * A Smart Behaviour implementing a security light that slowly turns off
  */
 @Component
-@SmartBehaviourDefinition(consumed=SensorReadingDTO.class)
+@SmartBehaviourDefinition(consumed=SensorReadingDTO.class, filter="(timestamp=*)")
 public class ComponentImpl implements SmartBehaviour<SensorReadingDTO>{
 
 	private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();

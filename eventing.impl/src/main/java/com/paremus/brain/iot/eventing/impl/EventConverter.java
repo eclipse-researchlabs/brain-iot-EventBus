@@ -7,11 +7,25 @@ package com.paremus.brain.iot.eventing.impl;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.MonthDay;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.Year;
+import java.time.YearMonth;
+import java.time.ZonedDateTime;
+import java.util.Calendar;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.osgi.util.converter.Converter;
 import org.osgi.util.converter.ConverterFunction;
@@ -40,6 +54,7 @@ public class EventConverter {
 	
 	private static final Converter eventConverter;
 	private static final Set<Class<?>> safeClasses;
+	private static final Set<Class<?>> specialClasses;
 	
 	static {
 		safeClasses = new HashSet<>();
@@ -53,23 +68,44 @@ public class EventConverter {
 		safeClasses.add(Float.class);
 		safeClasses.add(Double.class);
 		
-		eventConverter = Converters.newConverterBuilder()
+		specialClasses = new HashSet<Class<?>>();
+		specialClasses.add(Date.class);
+		specialClasses.add(Calendar.class);
+		specialClasses.add(Duration.class);
+		specialClasses.add(Instant.class);
+		specialClasses.add(LocalDate.class);
+		specialClasses.add(LocalDateTime.class);
+		specialClasses.add(LocalTime.class);
+		specialClasses.add(MonthDay.class);
+		specialClasses.add(OffsetTime.class);
+		specialClasses.add(OffsetDateTime.class);
+		specialClasses.add(Year.class);
+		specialClasses.add(YearMonth.class);
+		specialClasses.add(ZonedDateTime.class);
+		specialClasses.add(UUID.class);
+		
+		eventConverter = Converters.standardConverter()
+			.newConverterBuilder()
 			.rule(EventConverter::convert)
 			.build();
 	}
 	
 	static Object convert(Object o, Type target) {
+		
 		if(target != Object.class || o == null) {
 			return ConverterFunction.CANNOT_HANDLE;
 		}
 		
-		if(safeClasses.contains(o.getClass())) {
+		Class<? extends Object> sourceClass = o.getClass();
+		
+		// "Safe" classes use an identity transform
+		if(safeClasses.contains(sourceClass)) {
 			return o;
 		}
 		
-		// Enums map to strings
-		if(o.getClass().isEnum()) {
-			return o.toString();
+		// "Special" types and Enums map to strings
+		if(specialClasses.contains(sourceClass) || sourceClass.isEnum()) {
+			return eventConverter.convert(o).sourceAs(Object.class).to(String.class);
 		}
 		
 		// Collections get remapped using the same converter to 
@@ -89,10 +125,10 @@ public class EventConverter {
 			return eventConverter.convert(o).to(MAP_OF_OBJECT_TO_OBJECT);
 		}
 		
-		if(o.getClass().isArray()) {
+		if(sourceClass.isArray()) {
 			int depth = 1;
-			Class<?> arrayComponentType = o.getClass().getComponentType();
-			Class<?> actualComponentType = o.getClass().getComponentType();
+			Class<?> arrayComponentType = sourceClass.getComponentType();
+			Class<?> actualComponentType = sourceClass.getComponentType();
 			while(actualComponentType.isArray()) {
 				depth++;
 				actualComponentType = actualComponentType.getComponentType();

@@ -15,6 +15,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.converter</artifactId>
+            <version>1.0.9-SNAPSHOT</version>
+        </dependency>
+        
+        <dependency>
             <groupId>org.osgi.enroute</groupId>
             <artifactId>osgi-api</artifactId>
             <type>pom</type>
