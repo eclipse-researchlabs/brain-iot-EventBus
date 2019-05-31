@@ -6,10 +6,12 @@
 package com.paremus.brain.iot.eventing.impl;
 
 import static java.util.Collections.emptyMap;
+import static java.util.stream.Collectors.toList;
 import static org.osgi.util.converter.Converters.standardConverter;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +19,9 @@ import java.util.Map.Entry;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.Filter;
 import org.osgi.framework.FrameworkUtil;
@@ -31,19 +34,23 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.osgi.util.converter.TypeReference;
 
+import com.paremus.brain.iot.eventing.spi.remote.RemoteEventBus;
+
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.EventBus;
 import eu.brain.iot.eventing.api.SmartBehaviour;
 import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
 
-@Component
+@Component(immediate=true)
 public class EventBusImpl implements EventBus {
 	
 	private static final TypeReference<List<String>> LIST_OF_STRINGS = 
 			new TypeReference<List<String>>() {};
 	
 	private final Object lock = new Object();
+	
+	private final RemoteEventBusImpl remoteImpl = new RemoteEventBusImpl(this);
 	
 	/**
 	 * Map access and mutation must be synchronized on {@link #lock}.
@@ -64,6 +71,13 @@ public class EventBusImpl implements EventBus {
 	 */
 	private final List<UntypedSmartBehaviour> listenersOfLastResort = 
 			new ArrayList<>();
+	
+	/**
+	 * Map access and mutation must be synchronized on {@link #lock}.
+	 * Values from the map should be copied as the contents are not thread safe.
+	 */
+	private final Map<String, Map<RemoteEventBus, List<Filter>>> eventTypeToRemotes = 
+			new HashMap<>();
 	
 	/**
 	 * Map access and mutation must be synchronized on {@link #lock}.
@@ -107,25 +121,27 @@ public class EventBusImpl implements EventBus {
 		
 		Filter f;
 		try {
-			f = getFilter(properties);
-		} catch (InvalidSyntaxException e) {
+			f = getFilter(serviceId, properties);
+		} catch (IllegalArgumentException e) {
 			// TODO Log a broken behaviour
 			e.printStackTrace();
 			return;
 		}
 		
-		doAddToMap(map, behaviour, f, list, serviceId);
+		doAddToMap(map, behaviour, x -> f, list, serviceId);
+		
+		remoteImpl.updateLocalInterest(serviceId, list, f);
 	}
 
-	private <T> void doAddToMap(Map<String, Map<T, Filter>> map, T behaviour, Filter filter, 
+	private <T,U> void doAddToMap(Map<String, Map<T, U>> map, T behaviour, Function<String, U> valueSupplier, 
 			List<String> list, Long serviceId) {
 		synchronized (lock) {
 			knownBehaviours.put(serviceId, list);
 			
 			list.forEach(s -> {
-				Map<T, Filter> behaviours = 
+				Map<T, U> behaviours = 
 						map.computeIfAbsent(s, x -> new HashMap<>());
-				behaviours.put(behaviour, filter);
+				behaviours.put(behaviour, valueSupplier.apply(s));
 			});
 		}
 	}
@@ -148,23 +164,31 @@ public class EventBusImpl implements EventBus {
 		return standardConverter().convert(properties.get(Constants.SERVICE_ID)).to(Long.class);
 	}
 
-	private Filter getFilter(Map<String, Object> properties) throws InvalidSyntaxException {
-		Object o = properties.get(SmartBehaviourDefinition.PREFIX_ + "filter");
-		
+	private Filter getFilter(Long serviceId, Map<String, Object> properties) throws IllegalArgumentException {
+		String key = SmartBehaviourDefinition.PREFIX_ + "filter";
+		return getFilter(serviceId, key, properties.get(key));
+	}
+
+	private Filter getFilter(Long serviceId, String key, Object o) throws IllegalArgumentException {
 		if(o == null || "".equals(o)) {
 			return null;
 		} else {
-			return FrameworkUtil.createFilter(String.valueOf(o));
+			try {
+				return FrameworkUtil.createFilter(String.valueOf(o));
+			} catch (InvalidSyntaxException ise) {
+				throw new IllegalArgumentException("The filter associated with property " + key + 
+						"for service with id " + serviceId +  " is invalid", ise);
+			}
 		}
 	}
 
-	private <T> void doRemoveSmartBehaviour(Map<String, Map<T, Filter>> map, T behaviour, 
+	private <T, U> void doRemoveSmartBehaviour(Map<String, Map<T, U>> map, T behaviour, 
 			Long serviceId) {
 		synchronized (lock) {
 			List<String> consumed = knownBehaviours.remove(serviceId);
 			if(consumed != null) {
 				consumed.forEach(s -> {
-					Map<T, Filter> behaviours = map.get(s);
+					Map<T, ?> behaviours = map.get(s);
 					if(behaviours != null) {
 						behaviours.remove(behaviour);
 						if(behaviours.isEmpty()) {
@@ -174,6 +198,8 @@ public class EventBusImpl implements EventBus {
 				});
 			}
 		}
+		
+		remoteImpl.removeLocalInterest(serviceId);
 	}
 	
 	void updatedSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Map<String, Object> properties) {
@@ -207,9 +233,45 @@ public class EventBusImpl implements EventBus {
 			listenersOfLastResort.remove(behaviour);
 		}
 	}
+
+	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC,
+			target="(service.imported=true)")
+	void addRemoteEventBus(RemoteEventBus remote, Map<String, Object> properties) {
+		
+		Object consumed = properties.get(SmartBehaviourDefinition.PREFIX_ + "consumed");
+		
+		if(consumed == null) {
+			//TODO log a broken behaviour
+			return;
+		}
+		
+		List<String> list = standardConverter().convert(consumed).to(LIST_OF_STRINGS);
+		
+		Long serviceId = getServiceId(properties);
+		
+		Function<String, List<Filter>> filters = s -> {
+				String filterKey = "filter-" + s;
+				return standardConverter().convert(properties.get(filterKey)).to(LIST_OF_STRINGS).stream()
+					.map(t -> getFilter(serviceId, filterKey, t))
+					.collect(toList());
+			};
+		
+		synchronized (lock) {
+			doAddToMap(eventTypeToRemotes, remote, filters, list, serviceId);
+		}
+	}
+	
+	void removeRemoteEventBus(RemoteEventBus behaviour, Map<String, Object> properties) {
+		Long serviceId = getServiceId(properties);
+		
+		doRemoveSmartBehaviour(eventTypeToRemotes, behaviour, serviceId);
+	}
 	
 	@Activate
-	void start() {
+	void start(BundleContext ctx) {
+		
+		remoteImpl.init(ctx);
+		
 		EventThread thread = new EventThread();
 		
 		synchronized (threadLock) {
@@ -222,6 +284,8 @@ public class EventBusImpl implements EventBus {
 	@Deactivate
 	void stop() {
 		EventThread thread;
+		
+		remoteImpl.destroy();
 		
 		synchronized (threadLock) {
 			thread = this.thread;
@@ -244,36 +308,54 @@ public class EventBusImpl implements EventBus {
 		Class<?> eventClass = event.getClass();
 		deliver(eventClass.getName(), 
 				EventConverter.convert(event),
-				eventClass);
+				eventClass,
+				true);
 	}
 	
 	@Override
 	public void deliver(String eventType, Map<String, Object> eventData) {
-		deliver(eventType, EventConverter.convert(eventData), null);
+		deliver(eventType, EventConverter.convert(eventData), null, true);
 	}
 	
-	private void deliver(String eventType, Map<String, Object> eventData, Class<?> eventClass) {
+	void deliverEventFromRemote(String eventType, Map<String, Object> eventData) {
+		deliver(eventType, EventConverter.convert(eventData), null, false);
+	}
+	
+	private void deliver(String eventType, Map<String, Object> eventData, Class<?> eventClass,
+			boolean sendRemotely) {
 		
 		autoPopulateEventData(eventData);
 		
 		List<SmartBehaviour<BrainIoTEvent>> behaviours;
 
 		List<UntypedSmartBehaviour> untypedBehaviours;
+
+		List<RemoteEventBus> remoteEventBuses;
 		
 		synchronized (lock) {
 			behaviours = eventTypeToSBs.getOrDefault(eventType, emptyMap())
 					.entrySet().stream()
 						.filter(e -> e.getValue() == null || e.getValue().matches(eventData))
 						.map(Entry::getKey)
-						.collect(Collectors.toList());
+						.collect(toList());
 
 			untypedBehaviours = eventTypeToUntypedSBs.getOrDefault(eventType, emptyMap())
 					.entrySet().stream()
 					.filter(e -> e.getValue() == null || e.getValue().matches(eventData))
 					.map(Entry::getKey)
-					.collect(Collectors.toList());
+					.collect(toList());
 			
-			if(behaviours.isEmpty() && untypedBehaviours.isEmpty()) {
+			if(sendRemotely) {
+				remoteEventBuses = eventTypeToRemotes.getOrDefault(eventType, emptyMap())
+						.entrySet().stream()
+						.filter(e -> e.getValue().stream().anyMatch(f -> f.matches(eventData)))
+						.map(Entry::getKey)
+						.collect(toList());
+			} else {
+				remoteEventBuses = Collections.emptyList();
+			}
+			
+			if(behaviours.isEmpty() && untypedBehaviours.isEmpty() && remoteEventBuses.isEmpty()) {
 				System.out.println("Listeners of last resort are being used for event " + eventType);
 				untypedBehaviours.addAll(listenersOfLastResort);
 			}
@@ -283,6 +365,8 @@ public class EventBusImpl implements EventBus {
 					eventClass, eventData, sb)));
 		untypedBehaviours.forEach(sb -> queue.add(new UntypedEventTask(eventType, 
 					eventData, sb)));
+		remoteEventBuses.forEach(reb -> queue.add(new RemoteEventTask(eventType, 
+					eventData, reb)));
 		
 	}
 

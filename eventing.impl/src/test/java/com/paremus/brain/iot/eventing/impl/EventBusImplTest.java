@@ -22,8 +22,12 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
+import org.osgi.framework.ServiceRegistration;
 import org.osgi.util.converter.Converters;
+
+import com.paremus.brain.iot.eventing.spi.remote.RemoteEventBus;
 
 import eu.brain.iot.eventing.annotation.ConsumerOfLastResort;
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
@@ -47,13 +51,23 @@ public class EventBusImplTest {
 	public MockitoRule rule = MockitoJUnit.rule();
 	
 	@Mock
+	BundleContext context;
+	
+	@Mock
+	ServiceRegistration<RemoteEventBus> remoteReg;
+	
+	@Mock
 	SmartBehaviour<BrainIoTEvent> behaviourA, behaviourB;
 
 	@Mock
 	UntypedSmartBehaviour untypedBehaviourA, untypedBehaviourB;
+
+	@Mock
+	RemoteEventBus remoteA, remoteB;
 	
 	Semaphore semA = new Semaphore(0), semB = new Semaphore(0),
-			untypedSemA = new Semaphore(0), untypedSemB = new Semaphore(0);
+			untypedSemA = new Semaphore(0), untypedSemB = new Semaphore(0),
+			remoteSemA = new Semaphore(0), remoteSemB = new Semaphore(0);
 	
 	EventBusImpl impl;
 	
@@ -79,9 +93,22 @@ public class EventBusImplTest {
 				untypedSemB.release();
 				return null;
 			}).when(untypedBehaviourB).notify(Mockito.anyString(), Mockito.any());
+
+		Mockito.doAnswer(i -> {
+				remoteSemA.release();
+				return null;
+			}).when(remoteA).notify(Mockito.anyString(), Mockito.any());
+		
+		Mockito.doAnswer(i -> {
+				remoteSemB.release();
+				return null;
+			}).when(remoteB).notify(Mockito.anyString(), Mockito.any());
+		
+		Mockito.when(context.registerService(Mockito.eq(RemoteEventBus.class), 
+				Mockito.any(RemoteEventBus.class), Mockito.any())).thenReturn(remoteReg);
 		
 		impl = new EventBusImpl();
-		impl.start();
+		impl.start(context);
 	}
 	
 	@After
@@ -369,6 +396,46 @@ public class EventBusImplTest {
     	
     	assertFalse(semA.tryAcquire(1, TimeUnit.SECONDS));
 
+    }
+    
+	/**
+	 * Tests that events are delivered to Smart Behaviours
+	 * based on type
+	 * 
+	 * @throws InterruptedException
+	 */
+    @Test
+    public void testRemoteEventSending() throws InterruptedException {
+        
+    	TestEvent event = new TestEvent();
+    	event.message = "boo";
+    	
+    	Map<String, Object> serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent.class.getName());
+    	serviceProperties.put("filter-" + TestEvent.class.getName(), "(message=boo)");
+    	serviceProperties.put(Constants.SERVICE_ID, 42L);
+    	
+    	impl.addRemoteEventBus(remoteA, serviceProperties);
+
+    	serviceProperties = new HashMap<>();
+    	
+    	serviceProperties.put(SmartBehaviourDefinition.PREFIX_ + "consumed", TestEvent2.class.getName());
+    	serviceProperties.put("filter-" + TestEvent2.class.getName(), "(count>=12)");
+    	serviceProperties.put(Constants.SERVICE_ID, 43L);
+    	
+    	impl.addRemoteEventBus(remoteB, serviceProperties);
+    	
+    	serviceProperties = new HashMap<>();
+    	
+    	impl.deliver(event);
+    	
+    	assertTrue(remoteSemA.tryAcquire(1, TimeUnit.SECONDS));
+
+    	Mockito.verify(remoteA).notify(Mockito.anyString(), 
+    			Mockito.argThat(isUntypedTestEventWithMessage("boo")));
+    	
+    	assertFalse(remoteSemB.tryAcquire(1, TimeUnit.SECONDS));
     }
     
     

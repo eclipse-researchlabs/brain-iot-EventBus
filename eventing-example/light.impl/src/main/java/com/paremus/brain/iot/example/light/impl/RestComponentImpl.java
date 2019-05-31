@@ -46,7 +46,7 @@ import eu.brain.iot.eventing.api.SmartBehaviour;
 @JaxrsResource
 @HttpWhiteboardResource(pattern="/light-ui/*", prefix="/static")
 @JSONRequired
-@SmartBehaviourDefinition(consumed = {LightCommand.class, LightQuery.class})
+@SmartBehaviourDefinition(consumed = {LightCommand.class, LightQuery.class}, filter="(brightness=*)")
 public class RestComponentImpl implements SmartBehaviour<BrainIoTEvent>{
 
 	/*
