@@ -5,8 +5,6 @@
 
 package com.paremus.brain.iot.eventing.impl;
 
-import static org.osgi.util.converter.Converters.standardConverter;
-
 import java.util.Map;
 
 import eu.brain.iot.eventing.api.BrainIoTEvent;
@@ -14,12 +12,12 @@ import eu.brain.iot.eventing.api.SmartBehaviour;
 
 class TypedEventTask extends EventTask {
 	private final String eventType;
-	private final Class<?> eventClassOfLastResort;
+	private final Class<? extends BrainIoTEvent> eventClassOfLastResort;
 	private final Map<String, Object> eventProps;
 	private final SmartBehaviour<BrainIoTEvent> eventProcessor;
 	
-	public TypedEventTask(String eventType, Class<?> eventClassOfLastResort, Map<String, Object> eventProps,
-			SmartBehaviour<BrainIoTEvent> eventProcessor) {
+	public TypedEventTask(String eventType, Class<? extends BrainIoTEvent> eventClassOfLastResort, 
+			Map<String, Object> eventProps, SmartBehaviour<BrainIoTEvent> eventProcessor) {
 		super();
 		this.eventType = eventType;
 		this.eventClassOfLastResort = eventClassOfLastResort;
@@ -46,8 +44,9 @@ class TypedEventTask extends EventTask {
 		if(BrainIoTEvent.class.isAssignableFrom(targetEventClass)) {
 			// All good
 			
-			BrainIoTEvent event = (BrainIoTEvent) standardConverter()
-					.convert(eventProps).targetAsDTO().to(targetEventClass);
+			@SuppressWarnings("unchecked")
+			BrainIoTEvent event = EventConverter.convert(eventProps, 
+					(Class<? extends BrainIoTEvent>)targetEventClass);
 			
 			try {
 				eventProcessor.notify(event);

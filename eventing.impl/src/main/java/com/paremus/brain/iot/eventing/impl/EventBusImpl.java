@@ -305,7 +305,7 @@ public class EventBusImpl implements EventBus {
 	
 	@Override
 	public void deliver(BrainIoTEvent event) {
-		Class<?> eventClass = event.getClass();
+		Class<? extends BrainIoTEvent> eventClass = event.getClass();
 		deliver(eventClass.getName(), 
 				EventConverter.convert(event),
 				eventClass,
@@ -321,8 +321,8 @@ public class EventBusImpl implements EventBus {
 		deliver(eventType, EventConverter.convert(eventData), null, false);
 	}
 	
-	private void deliver(String eventType, Map<String, Object> eventData, Class<?> eventClass,
-			boolean sendRemotely) {
+	private void deliver(String eventType, Map<String, Object> eventData, 
+			Class<? extends BrainIoTEvent> eventClass, boolean sendRemotely) {
 		
 		autoPopulateEventData(eventData);
 		
