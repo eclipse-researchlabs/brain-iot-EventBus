@@ -87,6 +87,7 @@ public class EventConverter {
 		eventConverter = Converters.standardConverter()
 			.newConverterBuilder()
 			.rule(EventConverter::convert)
+			.errorHandler(EventConverter::attemptRecovery)
 			.build();
 	}
 	
@@ -148,9 +149,16 @@ public class EventConverter {
 		}
 		
 		// If we get here then treat the type as a DTO
-		return eventConverter.convert(o).to(MAP_WITH_STRING_KEYS);
+		return eventConverter.convert(o).sourceAsDTO().to(MAP_WITH_STRING_KEYS);
 	}
 	
+	static Object attemptRecovery(Object o, Type target) {
+		if(o instanceof Map) {
+			// TODO log the warning in a big way
+			return eventConverter.convert(o).targetAsDTO().to(target);
+		}
+		return ConverterFunction.CANNOT_HANDLE;
+	}
 	
 	public static Map<String, Object> convert(BrainIoTEvent event) {
 		return eventConverter.convert(event).sourceAsDTO().to(MAP_WITH_STRING_KEYS);
@@ -158,5 +166,9 @@ public class EventConverter {
 
 	public static Map<String, Object> convert(Map<String, Object> event) {
 		return eventConverter.convert(event).to(MAP_WITH_STRING_KEYS);
+	}
+
+	public static <T> T convert(Map<String, Object> event, Class<T> target) {
+		return eventConverter.convert(event).targetAsDTO().to(target);
 	}
 }
