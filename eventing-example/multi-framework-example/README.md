@@ -1,4 +1,4 @@
-# Single Node Eventing Example
+# Multiple Node Eventing Example
 
 This example runs the light bulb, sensor and smart behaviour on multiple nodes.
 
