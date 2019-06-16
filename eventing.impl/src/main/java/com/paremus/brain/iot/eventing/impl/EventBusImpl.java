@@ -51,6 +51,8 @@ public class EventBusImpl implements EventBus {
 	private final Object lock = new Object();
 	
 	private final RemoteEventBusImpl remoteImpl = new RemoteEventBusImpl(this);
+
+	private final EventMonitorImpl monitorImpl = new EventMonitorImpl();
 	
 	/**
 	 * Map access and mutation must be synchronized on {@link #lock}.
@@ -271,6 +273,7 @@ public class EventBusImpl implements EventBus {
 	void start(BundleContext ctx) {
 		
 		remoteImpl.init(ctx);
+		monitorImpl.init(ctx);
 		
 		EventThread thread = new EventThread();
 		
@@ -301,6 +304,7 @@ public class EventBusImpl implements EventBus {
 			// waiting and let the interrupt propagate
 			Thread.currentThread().interrupt();
 		}
+		monitorImpl.destroy();
 	}
 	
 	@Override
@@ -360,6 +364,8 @@ public class EventBusImpl implements EventBus {
 				untypedBehaviours.addAll(listenersOfLastResort);
 			}
 		}
+		
+		queue.add(new MonitorEventTask(eventType, eventData, !sendRemotely, monitorImpl));
 		
 		behaviours.forEach(sb -> queue.add(new TypedEventTask(eventType, 
 					eventClass, eventData, sb)));

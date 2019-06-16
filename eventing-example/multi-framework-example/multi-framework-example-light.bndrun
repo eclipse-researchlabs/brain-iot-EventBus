@@ -44,4 +44,5 @@ index: target/index.xml;name="single-framework-example-light"
 	org.apache.aries.rsa.provider.tcp;version='[1.11.0,1.11.1)',\
 	org.apache.aries.rsa.spi;version='[1.11.0,1.11.1)',\
 	org.apache.aries.rsa.topology-manager;version='[1.11.0,1.11.1)',\
-	org.apache.hadoop.zookeeper;version='[3.4.10,3.4.11)'
+	org.apache.hadoop.zookeeper;version='[3.4.10,3.4.11)',\
+	org.osgi.util.pushstream;version='[1.0.0,1.0.1)'

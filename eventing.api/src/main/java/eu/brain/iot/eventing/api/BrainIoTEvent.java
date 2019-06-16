@@ -20,7 +20,7 @@ public abstract class BrainIoTEvent extends DTO {
 	/**
 	 * The identifier of the node creating the event   
 	 */
-   public String sourceNode;
+    public String sourceNode;
  
     /**   
      * The time at which this event was created  
