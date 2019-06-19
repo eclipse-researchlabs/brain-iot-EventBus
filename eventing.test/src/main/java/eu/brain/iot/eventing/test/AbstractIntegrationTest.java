@@ -20,6 +20,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.osgi.framework.Bundle;
+import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.util.tracker.ServiceTracker;
@@ -114,7 +115,9 @@ public abstract class AbstractIntegrationTest {
 			
 			@Override
 			public boolean matches(TestEvent argument) {
-				return message.equals(argument.message);
+				return message.equals(argument.message) &&
+						bundle.getBundleContext().getProperty(Constants.FRAMEWORK_UUID)
+							.equals(argument.sourceNode);
 			}
 		};
     }
@@ -134,7 +137,9 @@ public abstract class AbstractIntegrationTest {
     		
     		@Override
     		public boolean matches(Map<String, Object> argument) {
-    			return argument != null && message.equals(argument.get("message"));
+    			return argument != null && message.equals(argument.get("message")) &&
+						bundle.getBundleContext().getProperty(Constants.FRAMEWORK_UUID)
+						.equals(argument.get("sourceNode"));
     		}
     	};
     }
