@@ -97,6 +97,8 @@ public class EventBusImpl implements EventBus {
 
 	private final Object threadLock = new Object();
 
+	private String nodeId;
+
 	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC)
 	void addSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Map<String, Object> properties) {
 		doAddSmartBehaviour(eventTypeToSBs, behaviour, properties);
@@ -272,6 +274,8 @@ public class EventBusImpl implements EventBus {
 	@Activate
 	void start(BundleContext ctx) {
 		
+		nodeId = ctx.getProperty(Constants.FRAMEWORK_UUID);
+		
 		remoteImpl.init(ctx);
 		monitorImpl.init(ctx);
 		
@@ -327,8 +331,10 @@ public class EventBusImpl implements EventBus {
 	
 	private void deliver(String eventType, Map<String, Object> eventData, 
 			Class<? extends BrainIoTEvent> eventClass, boolean sendRemotely) {
-		
-		autoPopulateEventData(eventData);
+		//  Only add data for locally sent events
+		if(sendRemotely) {
+			autoPopulateEventData(eventData);
+		}
 		
 		List<SmartBehaviour<BrainIoTEvent>> behaviours;
 
@@ -386,7 +392,7 @@ public class EventBusImpl implements EventBus {
 		
 		o = eventData.get("sourceNode");
 		if(o == null) {
-			// TODO add the source node
+			eventData.put("sourceNode", nodeId);
 			eventData.remove("securityToken");
 		}
 		
