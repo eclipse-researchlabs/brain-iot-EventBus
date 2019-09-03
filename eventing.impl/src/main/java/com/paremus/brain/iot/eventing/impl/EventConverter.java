@@ -5,6 +5,9 @@
 
 package com.paremus.brain.iot.eventing.impl;
 
+import static java.lang.ThreadLocal.withInitial;
+import static java.util.Collections.newSetFromMap;
+
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -22,6 +25,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,6 +59,8 @@ public class EventConverter {
 	private static final Converter eventConverter;
 	private static final Set<Class<?>> safeClasses;
 	private static final Set<Class<?>> specialClasses;
+	private static final ThreadLocal<Set<Object>> errorsBeingHandled =
+			withInitial(() -> newSetFromMap(new IdentityHashMap<>()));
 	
 	static {
 		safeClasses = new HashSet<>();
@@ -154,8 +160,22 @@ public class EventConverter {
 	
 	static Object attemptRecovery(Object o, Type target) {
 		if(o instanceof Map) {
-			// TODO log the warning in a big way
-			return eventConverter.convert(o).targetAsDTO().to(target);
+			Set<Object> errors = errorsBeingHandled.get();
+			
+			if(errors.contains(o)) {
+				// TODO log the warning in a big way
+				return ConverterFunction.CANNOT_HANDLE;
+			}
+			
+			try {
+				errors.add(o);
+
+				// TODO log the warning in a big way
+				
+				return eventConverter.convert(o).targetAsDTO().to(target);
+ 			} finally {
+ 				errors.remove(o);
+ 			}
 		}
 		return ConverterFunction.CANNOT_HANDLE;
 	}
