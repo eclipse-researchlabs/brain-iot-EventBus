@@ -8,11 +8,13 @@ import static java.util.Collections.emptyMap;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.time.Instant;
 import java.util.Map;
 
 import org.junit.Test;
+import org.osgi.util.converter.ConversionException;
 import org.osgi.util.converter.Converters;
 
 import eu.brain.iot.eventing.api.BrainIoTEvent;
@@ -25,6 +27,10 @@ public class EventConverterTest {
 
 	
 	public static class NestedEventHolder extends BrainIoTEvent {
+		public TestEvent event;
+	}
+
+	static class DefaultVisibilityNestedEventHolder extends BrainIoTEvent {
 		public TestEvent event;
 	}
 	
@@ -103,6 +109,41 @@ public class EventConverterTest {
 		assertArrayEquals(holder.securityToken, testEvent.securityToken);
 		assertEquals(holder.timestamp, testEvent.timestamp);
 		
+	}
+	
+	@Test
+	public void testDefaultVisibiltyNestedFlattenAndReconstitute() {
+		
+		TestEvent te = new TestEvent();
+		te.message = "FOO";
+		
+		
+		NestedEventHolder holder = new  NestedEventHolder();
+		holder.event = te;
+		holder.securityToken = new byte[] {1,2,3};
+		holder.sourceNode = "FIZZBUZZ";
+		Instant now = Instant.now();
+		holder.timestamp = now;
+		
+		Map<String, Object> map = EventConverter.convert(holder);
+		
+		assertEquals("FIZZBUZZ", map.get("sourceNode"));
+		assertArrayEquals(new byte[] {1,2,3}, (byte[]) map.get("securityToken"));
+		assertEquals(now.toString(), map.get("timestamp"));
+		
+		
+		
+		@SuppressWarnings("unchecked")
+		Map<String, Object> nested = (Map<String, Object>) map.getOrDefault("event", emptyMap());
+		assertEquals("FOO", nested.get("message"));
+		
+		
+		try {
+			EventConverter.convert(map, DefaultVisibilityNestedEventHolder.class);
+			fail("Should not succeed in creating a Default Visibility type");
+		} catch (ConversionException ce) {
+			assertEquals(IllegalAccessException.class, ce.getCause().getClass());
+		}
 	}
 
 	@Test
