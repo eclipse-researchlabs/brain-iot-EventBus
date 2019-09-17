@@ -4,11 +4,18 @@
  */
 package com.paremus.brain.iot.example.light.impl;
 
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import com.paremus.brain.iot.example.light.api.LightCommand;
+import com.paremus.brain.iot.example.light.api.LightQuery;
+import com.paremus.brain.iot.example.light.api.LightQueryResponse;
+import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
+import eu.brain.iot.eventing.api.BrainIoTEvent;
+import eu.brain.iot.eventing.api.EventBus;
+import eu.brain.iot.eventing.api.SmartBehaviour;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.http.whiteboard.propertytypes.HttpWhiteboardResource;
+import org.osgi.service.jaxrs.whiteboard.propertytypes.JSONRequired;
+import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -19,25 +26,15 @@ import javax.ws.rs.ext.Providers;
 import javax.ws.rs.sse.Sse;
 import javax.ws.rs.sse.SseBroadcaster;
 import javax.ws.rs.sse.SseEventSink;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.http.whiteboard.propertytypes.HttpWhiteboardResource;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JSONRequired;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
-
-import com.paremus.brain.iot.example.light.api.LightCommand;
-import com.paremus.brain.iot.example.light.api.LightQuery;
-import com.paremus.brain.iot.example.light.api.LightQueryResponse;
-
-import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
-import eu.brain.iot.eventing.api.BrainIoTEvent;
-import eu.brain.iot.eventing.api.EventBus;
-import eu.brain.iot.eventing.api.SmartBehaviour;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 
 /**
  * This component represents two things:
- * 
+ *
  *  1. A Smart Light Bulb controlled using events
  *  2. A set of REST resources used by a web ui to display the light bulb
  *
@@ -46,20 +43,22 @@ import eu.brain.iot.eventing.api.SmartBehaviour;
 @JaxrsResource
 @HttpWhiteboardResource(pattern="/light-ui/*", prefix="/static")
 @JSONRequired
-@SmartBehaviourDefinition(consumed = {LightCommand.class, LightQuery.class}, filter="(brightness=*)")
+@SmartBehaviourDefinition(consumed = {LightCommand.class, LightQuery.class}, filter = "(brightness=*)",
+        author = "Paremus", name = "Example Smart Light Bulb",
+        description = "Implements a Smart Light Bulb and UI to display it.")
 public class RestComponentImpl implements SmartBehaviour<BrainIoTEvent>{
 
 	/*
 	 * A Smart Behaviour representing a lightbulb
 	 */
-	
+
 	@Reference
 	private EventBus eventBus;
-	
+
 	private boolean status;
-	
+
 	private int brightness;
-	
+
 	@Override
 	public void notify(BrainIoTEvent event) {
 		if(event instanceof LightQuery) {
@@ -76,7 +75,7 @@ public class RestComponentImpl implements SmartBehaviour<BrainIoTEvent>{
 			synchronized (this) {
 				status = command.status;
 				brightness = command.brightness;
-				
+
 				dto.status = status;
 				dto.brightness = brightness;
 			}
@@ -84,13 +83,13 @@ public class RestComponentImpl implements SmartBehaviour<BrainIoTEvent>{
 		} else {
 			System.out.println("Argh! Received an unknown event type " + event.getClass());
 		}
-		
+
 	}
-	
-	/* 
-	 * 
+
+	/*
+	 *
 	 * JAX-RS logic for the lightbulb UI
-	 * 
+	 *
 	 */
 
 	private SseBroadcaster broadcaster;
@@ -106,7 +105,7 @@ public class RestComponentImpl implements SmartBehaviour<BrainIoTEvent>{
 			broadcasterToUse = broadcaster;
 			providersToUse = providers;
 		}
-    	
+
     	if(broadcasterToUse != null) {
     		try(ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 				MessageBodyWriter<LightDTO> writer = providersToUse.getMessageBodyWriter(LightDTO.class, null, null, APPLICATION_JSON_TYPE);
@@ -115,7 +114,7 @@ public class RestComponentImpl implements SmartBehaviour<BrainIoTEvent>{
     		} catch (IOException e) {
 				broadcaster.broadcast(sseToUse.newEvent("error", e.getMessage()));
 			}
-    		
+
     	}
 	}
 
@@ -124,12 +123,12 @@ public class RestComponentImpl implements SmartBehaviour<BrainIoTEvent>{
 	@Produces(APPLICATION_JSON)
 	public LightDTO light() {
 		LightDTO dto = new LightDTO();
-		
+
 		synchronized (this) {
 			dto.status = status;
 			dto.brightness = brightness;
 		}
-		
+
 		return dto;
 	}
 

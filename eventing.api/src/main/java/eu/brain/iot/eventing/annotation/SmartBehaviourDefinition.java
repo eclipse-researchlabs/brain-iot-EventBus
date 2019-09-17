@@ -19,18 +19,36 @@ import org.osgi.service.component.annotations.ComponentPropertyType;
 public @interface SmartBehaviourDefinition {
 
 	static final String PREFIX_ = "eu.brain.iot.behaviour.";
-	
+
     /**
-     * The message types consumed by this smart behaviour 
+     * The message types consumed by this smart behaviour
      */
 	@Attribute
 	Class<?>[] consumed();
-	
+
+    /**
+     * The author of this smart behaviour
+     */
+    @Attribute
+    String author() default "";
+
+    /**
+     * The name of this smart behaviour
+     */
+    @Attribute
+    String name() default "";
+
+    /**
+     * The description of this smart behaviour
+     */
+    @Attribute
+    String description() default "";
+
 	/**
 	 * A filter used to select the properties of the
 	 * events that should be passed to this smart behaviour
 	 * @return
 	 */
 	String filter() default "";
-	
+
 }
