@@ -19,13 +19,13 @@ public interface EventMonitor {
 
     /**
      * Get a stream of events that match any of the filters, starting now.
-     * 
+     * <p>
      * Filter expressions may be supplied and applied by the monitoring implementation.
      * In some cases this may be more optimal than adding your own filter to the returned
      * PushStream.
      *
-     * @param filters containining filter expression definitions. The {@link MonitorEvent#eventType}
-     *                field is available with the key <code>-eventType</code> and the 
+     * @param filters containing filter expression definitions. The {@link MonitorEvent#eventType}
+     *                field is available with the key <code>-eventType</code> and the
      *                {@link MonitorEvent#publishType} field is available with the key
      *                <code>-publishType</code>, in addition to fields defined in the event.
      *                If the event contains nested data structures then those are accessible using
@@ -33,10 +33,9 @@ public interface EventMonitor {
      *                would correspond to the <code>bar<code> field of the <code>foo</code> value
      *                from the event.
      *                <p>
-     *                If both LDAP and RegEx filters are present, both must match.
+     *                If a {@link FilterDTO} contains both LDAP and regular expressions, then both must match.
      *                A RegEx pattern allows the whole event content to be matched, without necessarily specifying
      *                a key (although keys are present and separated with ':').
-     *
      * @return A stream of event data
      */
     PushStream<MonitorEvent> monitorEvents(FilterDTO... filters);
@@ -50,8 +49,8 @@ public interface EventMonitor {
 	 * may be returned if history is unavailable, or if
 	 * insufficient events have been sent.
 	 *
-     * @param filters containining filter expression definitions. The {@link MonitorEvent#eventType}
-     *                field is available with the key <code>-eventType</code> and the 
+     * @param filters containing filter expression definitions. The {@link MonitorEvent#eventType}
+     *                field is available with the key <code>-eventType</code> and the
      *                {@link MonitorEvent#publishType} field is available with the key
      *                <code>-publishType</code>, in addition to fields defined in the event.
      *                If the event contains nested data structures then those are accessible using
@@ -59,7 +58,7 @@ public interface EventMonitor {
      *                would correspond to the <code>bar<code> field of the <code>foo</code> value
      *                from the event.
      *                <p>
-     *                If both LDAP and RegEx filters are present, both must match.
+     *                If a {@link FilterDTO} contains both LDAP and regular expressions, then both must match.
      *                A RegEx pattern allows the whole event content to be matched, without necessarily specifying
      *                a key (although keys are present and separated with ':').
      *
@@ -76,8 +75,8 @@ public interface EventMonitor {
 	 * that events may have been discarded, or history
 	 * unavailable.
 	 *
-     * @param filters containining filter expression definitions. The {@link MonitorEvent#eventType}
-     *                field is available with the key <code>-eventType</code> and the 
+     * @param filters containing filter expression definitions. The {@link MonitorEvent#eventType}
+     *                field is available with the key <code>-eventType</code> and the
      *                {@link MonitorEvent#publishType} field is available with the key
      *                <code>-publishType</code>, in addition to fields defined in the event.
      *                If the event contains nested data structures then those are accessible using
@@ -85,7 +84,7 @@ public interface EventMonitor {
      *                would correspond to the <code>bar<code> field of the <code>foo</code> value
      *                from the event.
      *                <p>
-     *                If both LDAP and RegEx filters are present, both must match.
+     *                If a {@link FilterDTO} contains both LDAP and regular expressions, then both must match.
      *                A RegEx pattern allows the whole event content to be matched, without necessarily specifying
      *                a key (although keys are present and separated with ':').
      *

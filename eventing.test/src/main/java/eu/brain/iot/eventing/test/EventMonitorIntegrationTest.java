@@ -159,8 +159,7 @@ public class EventMonitorIntegrationTest extends AbstractIntegrationTest {
     public void testEventMonitor3() throws Exception {
 
         FilterDTO filter = new FilterDTO();
-        filter.type = FilterDTO.FilterType.LDAP;
-        filter.expression = "(!(message=bam))";
+        filter.ldapExpression = "(!(message=bam))";
 
         Promise<List<MonitorEvent>> eventsPromise = monitor.monitorEvents(filter)
                 .limit(2)
@@ -198,8 +197,7 @@ public class EventMonitorIntegrationTest extends AbstractIntegrationTest {
     @Test
     public void testEventMonitor4() throws InterruptedException, InvocationTargetException {
         FilterDTO filter = new FilterDTO();
-        filter.type = FilterDTO.FilterType.REGEX;
-        filter.expression = "message:ba";
+        filter.regularExpression = "message:ba";
 
         Promise<List<MonitorEvent>> eventsPromise = monitor.monitorEvents(filter)
                 .limit(2)
@@ -236,76 +234,74 @@ public class EventMonitorIntegrationTest extends AbstractIntegrationTest {
      */
     @Test
     public void testEventMonitor5() throws Exception {
-    	
+
     	FilterDTO filter = new FilterDTO();
-    	filter.type = FilterDTO.FilterType.LDAP;
-    	filter.expression = "(!(subEvent.message=bam))";
-    	
+    	filter.ldapExpression = "(!(subEvent.message=bam))";
+
     	Promise<List<MonitorEvent>> eventsPromise = monitor.monitorEvents(filter)
     			.limit(2)
     			.collect(Collectors.toList());
-    	
+
     	TestEvent event = new TestEvent();
     	event.message = "boo";
-    	
+
     	impl.deliver(TestEvent2.create(event));
-    	
+
     	event = new TestEvent();
     	event.message = "bam";
-    	
+
     	impl.deliver(TestEvent2.create(event));
-    	
+
     	event = new TestEvent();
     	event.message = "baz";
-    	
+
     	impl.deliver(TestEvent2.create(event));
-    	
+
     	List<MonitorEvent> events = eventsPromise.timeout(2000).getValue();
-    	
+
     	assertEquals(2, events.size());
-    	
+
     	assertEquals(TestEvent2.class.getName(), events.get(0).eventType);
     	assertEquals(TestEvent2.class.getName(), events.get(1).eventType);
-    	
+
     	assertEquals("boo", ((Map<?,?>)events.get(0).eventData.get("subEvent")).get("message"));
     	assertEquals("baz", ((Map<?,?>)events.get(1).eventData.get("subEvent")).get("message"));
     }
-    
+
     /**
-     * Test that events can be filtered by regex
+     * Test that sub-events can be filtered by regex
      */
     @Test
     public void testEventMonitor6() throws InterruptedException, InvocationTargetException {
     	FilterDTO filter = new FilterDTO();
-    	filter.type = FilterDTO.FilterType.REGEX;
-    	filter.expression = "subEvent.message:ba";
-    	
+    	filter.regularExpression = "subEvent.message:ba";
+
     	Promise<List<MonitorEvent>> eventsPromise = monitor.monitorEvents(filter)
     			.limit(2)
     			.collect(Collectors.toList());
-    	
+
     	TestEvent event = new TestEvent();
     	event.message = "boo";
-    	
+
     	impl.deliver(TestEvent2.create(event));
-    	
+
     	event = new TestEvent();
     	event.message = "bam";
-    	
+
     	impl.deliver(TestEvent2.create(event));
-    	
+
     	event = new TestEvent();
     	event.message = "baz";
-    	
+
     	impl.deliver(TestEvent2.create(event));
-    	
+
     	List<MonitorEvent> events = eventsPromise.timeout(2000).getValue();
-    	
+
     	assertEquals(2, events.size());
-    	
+
     	assertEquals(TestEvent2.class.getName(), events.get(0).eventType);
     	assertEquals(TestEvent2.class.getName(), events.get(1).eventType);
-    	
+
     	assertEquals("bam", ((Map<?,?>)events.get(0).eventData.get("subEvent")).get("message"));
     	assertEquals("baz", ((Map<?,?>)events.get(1).eventData.get("subEvent")).get("message"));
     }
