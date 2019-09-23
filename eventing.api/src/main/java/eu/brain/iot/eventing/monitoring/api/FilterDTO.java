@@ -9,14 +9,13 @@ import org.osgi.dto.DTO;
 
 /**
  * A monitoring event filter.
+ *
+ * If both LDAP and regular expressions are supplied, then both must match.
  */
 @ProviderType
 public class FilterDTO extends DTO {
 
-    public static enum FilterType {
-        LDAP, REGEX;
-    }
+    public String ldapExpression;
 
-    public String expression;
-    public FilterType type;
+    public String regularExpression;
 }

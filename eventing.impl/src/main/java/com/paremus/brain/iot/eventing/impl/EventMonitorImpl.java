@@ -5,24 +5,10 @@
 
 package com.paremus.brain.iot.eventing.impl;
 
-import java.time.Instant;
-import java.util.AbstractMap;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
+import eu.brain.iot.eventing.monitoring.api.EventMonitor;
+import eu.brain.iot.eventing.monitoring.api.FilterDTO;
+import eu.brain.iot.eventing.monitoring.api.MonitorEvent;
+import eu.brain.iot.eventing.monitoring.api.MonitorEvent.PublishType;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.Filter;
@@ -37,10 +23,23 @@ import org.osgi.util.pushstream.PushbackPolicyOption;
 import org.osgi.util.pushstream.QueuePolicyOption;
 import org.osgi.util.pushstream.SimplePushEventSource;
 
-import eu.brain.iot.eventing.monitoring.api.EventMonitor;
-import eu.brain.iot.eventing.monitoring.api.FilterDTO;
-import eu.brain.iot.eventing.monitoring.api.MonitorEvent;
-import eu.brain.iot.eventing.monitoring.api.MonitorEvent.PublishType;
+import java.time.Instant;
+import java.util.AbstractMap;
+import java.util.Arrays;
+import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @ServiceCapability(EventMonitor.class)
 public class EventMonitorImpl implements EventMonitor {
@@ -146,70 +145,74 @@ public class EventMonitorImpl implements EventMonitor {
                 .filter(createFilter(filters));
     }
 
-    private Predicate<MonitorEvent> createFilter(FilterDTO... filters) {
-        Set<Filter> ldapFilters = new HashSet<>();
-        Set<Pattern> regexFilters = new HashSet<>();
+    private class FilterPair {
+        Filter ldap;
+        Pattern regex;
 
-        for (FilterDTO filter : filters) {
-            switch (filter.type) {
-                case LDAP:
-                    try {
-                        ldapFilters.add(context.createFilter(filter.expression));
-                    } catch (InvalidSyntaxException e) {
-                        throw new IllegalArgumentException(e);
-                    }
-                    break;
-                case REGEX:
-                    regexFilters.add(Pattern.compile(filter.expression));
-                    break;
+        FilterPair(FilterDTO filter) {
+            if (filter.ldapExpression != null && !filter.ldapExpression.isEmpty()) {
+                try {
+                    ldap = context.createFilter(filter.ldapExpression);
+                } catch (InvalidSyntaxException e) {
+                    throw new IllegalArgumentException(e);
+                }
+            }
+
+            if (filter.regularExpression != null && !filter.regularExpression.isEmpty()) {
+                regex = Pattern.compile(filter.regularExpression);
             }
         }
+    }
 
-        if(ldapFilters.isEmpty() && regexFilters.isEmpty()) {
-        	return x -> true;
+    private Predicate<MonitorEvent> createFilter(FilterDTO... filters) {
+        List<FilterPair> filterPairs = Arrays.asList(filters).stream()
+                .map(FilterPair::new).collect(Collectors.toList());
+
+        if (filterPairs.isEmpty()) {
+            return x -> true;
         }
 
         return event -> {
             // We use a TreeMap to ensure predictable ordering of keys
-            // This is important for the regex matching contract. 
-            
+            // This is important for the regex matching contract.
+
             SortedMap<String, Object> toFilter = new TreeMap<>();
-            
+
             // Using a collector blew up with null values, even though they are
             // supported by the TreeMap
             event.eventData.entrySet().stream()
-            		.flatMap(e -> flatten("", e))
-            		.forEach(e -> toFilter.put(e.getKey(), e.getValue()));
-            		
-            
+                    .flatMap(e -> flatten("", e))
+                    .forEach(e -> toFilter.put(e.getKey(), e.getValue()));
+
             toFilter.put("-eventType", event.eventType);
             toFilter.put("-publishType", event.publishType);
 
-            boolean publish = ldapFilters.isEmpty() || 
-            		          ldapFilters.stream().anyMatch(f -> f.matches(toFilter));
+            StringBuilder eventText = new StringBuilder();
 
-            if (publish && !regexFilters.isEmpty()) {
-                StringBuilder sb = new StringBuilder();
+            if (filterPairs.stream().anyMatch(p -> p.regex != null)) {
                 toFilter.forEach((k, v) -> {
-                    sb.append(k).append(':').append(v).append(',');
+                    eventText.append(k).append(':').append(v).append(',');
                 });
-                publish = regexFilters.stream().anyMatch(f -> f.matcher(sb).find());
             }
 
-            return publish;
+            // If a FilterDTO contains both LDAP and regular expressions, then both must match.
+            return filterPairs.stream().anyMatch(p ->
+                    (p.ldap == null || p.ldap.matches(toFilter)) &&
+                    (p.regex == null || p.regex.matcher(eventText).find())
+            );
         };
     }
 
-    private Stream<Entry<String, Object>> flatten(String parentScope, 
+    private Stream<Entry<String, Object>> flatten(String parentScope,
     		Entry<String, Object> entry) {
-    	
+
     	if (entry.getValue() instanceof Map) {
-    		
-			String keyPrefix = parentScope + entry.getKey() + "."; 
-    		
+
+			String keyPrefix = parentScope + entry.getKey() + ".";
+
 			@SuppressWarnings("unchecked")
 			Map<String, Object> subMap = (Map<String, Object>) entry.getValue();
-    		
+
 			// Recursively flatten maps that are inside our map
 			return subMap.entrySet().stream()
     			.flatMap(e -> flatten(keyPrefix, e));
@@ -221,9 +224,9 @@ public class EventMonitorImpl implements EventMonitor {
 			return Stream.of(new AbstractMap.SimpleEntry<>(
 					parentScope + entry.getKey(), entry.getValue()));
 		}
-    	
+
     }
-    
+
 	PushEventSource<MonitorEvent> eventSource(int events) {
 
 		return pec -> {
