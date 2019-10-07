@@ -1,0 +1,82 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	
+	<groupId>com.paremus.brain.iot.maven</groupId>
+    <artifactId>simple-test</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    
+    <dependencies>
+        <dependency>
+            <groupId>com.paremus.brain.iot</groupId>
+            <artifactId>eventing.api</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi.enroute</groupId>
+            <artifactId>osgi-api</artifactId>
+            <version>7.0.0</version>
+            <type>pom</type>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi.enroute</groupId>
+            <artifactId>enterprise-api</artifactId>
+            <version>7.0.0</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi.enroute</groupId>
+            <artifactId>impl-index</artifactId>
+            <version>7.0.0</version>
+            <type>pom</type>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+				<groupId>biz.aQute.bnd</groupId>
+				<artifactId>bnd-maven-plugin</artifactId>
+				<version>4.2.0</version>
+				<executions>
+					<execution>
+						<id>default-bnd-process</id>
+						<goals>
+							<goal>bnd-process</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- The following configuration is required because bnd-maven-plugin
+				generates the manifest to target/classes/META-INF/MANIFEST.MF but the normal
+				maven-jar-plugin does not use it. If the jar-plugin is patched to pick up
+				the manifest from this location, then the following config is not needed. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.1.1</version>
+				<configuration>
+					<archive>
+						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+					</archive>
+				</configuration>
+			</plugin>        
+            <plugin>
+			    <groupId>com.paremus.brain.iot.maven</groupId>
+				<artifactId>smart-behaviour-maven-plugin</artifactId>
+				<version>@project.version@</version>
+				<configuration>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>smart-behaviour</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+        </plugins>
+    </build>
+</project>

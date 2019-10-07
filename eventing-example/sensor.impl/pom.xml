@@ -26,6 +26,11 @@
         </dependency>
         <dependency>
             <groupId>org.osgi.enroute</groupId>
+            <artifactId>impl-index</artifactId>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi.enroute</groupId>
             <artifactId>test-bundles</artifactId>
             <type>pom</type>
         </dependency>
@@ -48,6 +53,22 @@
             <plugin>
                 <groupId>biz.aQute.bnd</groupId>
                 <artifactId>bnd-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.paremus.brain.iot.maven</groupId>
+                <artifactId>smart-behaviour-maven-plugin</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+                <executions>
+					<execution>
+						<goals>
+							<goal>smart-behaviour</goal>
+						</goals>
+					</execution>
+				</executions>
             </plugin>
         </plugins>
     </build>
