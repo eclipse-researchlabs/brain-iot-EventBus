@@ -1,6 +1,13 @@
 package com.paremus.brain.iot.maven.smart.behaviour;
 import static aQute.bnd.osgi.Constants.RUNBUNDLES;
 import static aQute.bnd.osgi.Constants.RUNREQUIRES;
+import static aQute.bnd.osgi.resource.CapReqBuilder.getRequirementsFrom;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.BRAIN_IOT_DEPLOY_REQUIREMENTS;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.BRAIN_IOT_DEPLOY_RESOURCES;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.BRAIN_IOT_SMART_BEHEAVIOUR_SYMBOLIC_NAME;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.BRAIN_IOT_SMART_BEHEAVIOUR_VERSION;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.SMART_BEHAVIOUR_MAVEN_CLASSIFIER;
+import static java.util.stream.Collectors.joining;
 import static org.twdata.maven.mojoexecutor.MojoExecutor.artifactId;
 import static org.twdata.maven.mojoexecutor.MojoExecutor.configuration;
 import static org.twdata.maven.mojoexecutor.MojoExecutor.element;
@@ -37,16 +44,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.twdata.maven.mojoexecutor.MojoExecutor.Element;
 
+import aQute.bnd.header.Parameters;
 import aQute.bnd.maven.lib.resolve.BndrunContainer;
+import aQute.bnd.osgi.Verifier;
+import aQute.bnd.osgi.resource.ResourceUtils;
+import aQute.bnd.version.MavenVersion;
 
 @Mojo(name = "smart-behaviour", defaultPhase=LifecyclePhase.PACKAGE, requiresDependencyResolution=ResolutionScope.TEST)
 public class SmartBehaviourMojo extends AbstractMojo {
 	
-	private static final String BRAIN_IOT_SMART_BEHEAVIOUR = "BRAIN-IoT-Smart-Behaviour";
-	private static final String BRAIN_IOT_DEPLOY_REQUIREMENTS = "BRAIN-IoT-Deploy-Requirement";
-	private static final String BRAIN_IOT_DEPLOY_RESOURCES = "BRAIN-IoT-Deploy-Resources";
-	
 	private static final Logger logger = LoggerFactory.getLogger(SmartBehaviourMojo.class);
+	
+	/**
+	 * The name that should be used to represent this Smart Behaviour
+	 */
+	@Parameter(defaultValue="${project.groupId}.${project.artifactId}", required=false)
+	private String name;
+
+	/**
+	 * The name that should be used to represent this Smart Behaviour
+	 */
+	@Parameter(defaultValue="${project.version}", required=false)
+	private String version;
 	
 	/**
 	 * Gather this project's compile and runtime dependencies into the target folder
@@ -84,10 +103,10 @@ public class SmartBehaviourMojo extends AbstractMojo {
 	@Parameter(required=false, defaultValue="false")
 	private boolean useRunBundles = false;
 
-	@Component
+	@Parameter( defaultValue = "${project}", readonly = true )
 	private MavenProject mavenProject;
 
-	@Component
+	@Parameter( defaultValue = "${session}", readonly = true )
 	private MavenSession mavenSession;
 
 	@Component
@@ -108,6 +127,19 @@ public class SmartBehaviourMojo extends AbstractMojo {
 	
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
+		
+		// Check the symbolic name syntax
+		if(!Verifier.SYMBOLICNAME.matcher(name).matches()) {
+			throw new MojoExecutionException("The symbolic name " + name + " does not fit the required OSGi syntax");
+		}
+		
+		// Check the version syntax
+		try {
+			version = new MavenVersion(version).getOSGiVersion().toString();
+		} catch (Exception e) {
+			throw new MojoExecutionException("The version " + version + " does not fit the required OSGi syntax");
+		}
+		
 		targetFolder.mkdirs();
 		
 		if(gatherDependencies) {
@@ -195,7 +227,16 @@ public class SmartBehaviourMojo extends AbstractMojo {
 				container.execute(bndrun, "getRunBundles", 
 						new File(mavenProject.getBuild().getDirectory()), 
 						(a,b,c) -> {
-							smartBehaviourProps.put(BRAIN_IOT_DEPLOY_REQUIREMENTS, c.get(RUNREQUIRES));
+							String runreqs = getRequirementsFrom(new Parameters(c.get(RUNREQUIRES))).stream()
+								.map(r -> { 
+										try {
+											return ResourceUtils.toRequireCapability(r);
+										} catch (Exception e) {
+											throw new RuntimeException("Failed to process the run requirements from " + bndrun, e);
+										}
+									})
+								.collect(joining(","));
+							smartBehaviourProps.put(BRAIN_IOT_DEPLOY_REQUIREMENTS, runreqs);
 							return 0;
 						});
 			} catch (Exception e) {
@@ -207,7 +248,8 @@ public class SmartBehaviourMojo extends AbstractMojo {
 
 	private void generateJar(Map<String, String> smartBehaviourProps) throws MojoExecutionException {
 
-		smartBehaviourProps.put(BRAIN_IOT_SMART_BEHEAVIOUR, "true");
+		smartBehaviourProps.put(BRAIN_IOT_SMART_BEHEAVIOUR_SYMBOLIC_NAME, name);
+		smartBehaviourProps.put(BRAIN_IOT_SMART_BEHEAVIOUR_VERSION, version);
 		
 		Element[] manifestEntries = smartBehaviourProps.entrySet().stream()
 			.map(e -> element(name(e.getKey()), e.getValue()))
@@ -223,7 +265,7 @@ public class SmartBehaviourMojo extends AbstractMojo {
 				configuration(
 						element(name("classesDirectory"), targetFolder.getAbsolutePath()),
 						element(name("outputDirectory"), mavenProject.getBuild().getDirectory()),
-						element(name("classifier"), "smart-behaviour"),
+						element(name("classifier"), SMART_BEHAVIOUR_MAVEN_CLASSIFIER),
 						element(name("archive"),
 								element(name("manifestEntries"), manifestEntries))
 						),

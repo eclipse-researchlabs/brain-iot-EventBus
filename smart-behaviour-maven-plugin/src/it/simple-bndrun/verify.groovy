@@ -5,7 +5,7 @@ println 'Tests for smart-behaviour-maven-plugin \'simple\''
 println " basedir: ${basedir}"
 
 // Check the bundles exist!
-File behaviour = new File(basedir, 'target/simple-bndrun-test-0.0.1-SNAPSHOT-smart-behaviour.jar')
+File behaviour = new File(basedir, 'target/simple-bndrun-test-0.0.1-SNAPSHOT-brain-iot-smart-behaviour.jar')
 assert behaviour.isFile()
 
 // Load JAR and Manifest
@@ -13,7 +13,8 @@ JarFile behaviour_jar = new JarFile(behaviour)
 Attributes behaviour_manifest = behaviour_jar.getManifest().getMainAttributes()
 
 // Check Manifest Entry
-assert behaviour_manifest.getValue("BRAIN-IoT-Smart-Behaviour") == "true"
+assert behaviour_manifest.getValue("BRAIN-IoT-Smart-Behaviour-SymbolicName") == "com.paremus.brain.iot.maven.test.simple-bndrun-test"
+assert behaviour_manifest.getValue("BRAIN-IoT-Smart-Behaviour-Version") == "0.0.1.SNAPSHOT"
 requirement = behaviour_manifest.getValue("BRAIN-IoT-Deploy-Requirement")
 assert requirement == "osgi.identity;filter:=\"(osgi.identity=simple-bndrun-test)\""
 

@@ -45,12 +45,10 @@
             <artifactId>biz.aQute.bnd.embedded-repo</artifactId>
             <version>4.3.0</version>
         </dependency>
-        <!-- Used in the integration tests -->
         <dependency>
             <groupId>com.paremus.brain.iot</groupId>
             <artifactId>eventing.api</artifactId>
             <version>0.0.1-SNAPSHOT</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

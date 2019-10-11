@@ -16,7 +16,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
-import eu.brain.iot.eventing.annotation.ConsumerOfLastResort;
+import eu.brain.iot.eventing.annotation.LastResort;
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.SmartBehaviour;
 import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
@@ -46,7 +46,7 @@ public class ListenerOfLastResortIntegrationTest extends AbstractIntegrationTest
     	
         props = new Hashtable<>();
     	
-        props.put(ConsumerOfLastResort.PREFIX_ + "consumer.of.last.resort", true);
+        props.put(LastResort.PREFIX_ + "last.resort", true);
     	
         regs.add(bundle.getBundleContext().registerService(UntypedSmartBehaviour.class, untypedBehaviourA, props));
     	
