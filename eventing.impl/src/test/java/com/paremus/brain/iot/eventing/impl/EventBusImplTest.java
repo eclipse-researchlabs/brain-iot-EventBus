@@ -29,7 +29,7 @@ import org.osgi.util.converter.Converters;
 
 import com.paremus.brain.iot.eventing.spi.remote.RemoteEventBus;
 
-import eu.brain.iot.eventing.annotation.ConsumerOfLastResort;
+import eu.brain.iot.eventing.annotation.LastResort;
 import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.SmartBehaviour;
@@ -364,7 +364,7 @@ public class EventBusImplTest {
     	
     	serviceProperties = new HashMap<>();
     	
-    	serviceProperties.put(ConsumerOfLastResort.PREFIX_ + "consumer.of.last.resort", true);
+    	serviceProperties.put(LastResort.PREFIX_ + "last.resort", true);
     	serviceProperties.put(Constants.SERVICE_ID, 45L);
     	
     	impl.addConsumerOfLastResort(untypedBehaviourA, serviceProperties);

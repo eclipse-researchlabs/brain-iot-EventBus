@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	
 	<groupId>com.paremus.brain.iot.maven.test</groupId>
-    <artifactId>simple-bndrun-test</artifactId>
+    <artifactId>custom-bndrun-test</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     
     <dependencies>

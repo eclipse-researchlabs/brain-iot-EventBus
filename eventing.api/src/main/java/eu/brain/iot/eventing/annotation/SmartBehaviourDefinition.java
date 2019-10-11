@@ -5,6 +5,11 @@
 
 package eu.brain.iot.eventing.annotation;
 
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourNamespace.CAPABILITY_AUTHOR_ATTRIBUTE;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourNamespace.CAPABILITY_CONSUMED_ATTRIBUTE;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourNamespace.CAPABILITY_DESCRIPTION_ATTRIBUTE;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourNamespace.CAPABILITY_NAME_ATTRIBUTE;
+
 import org.osgi.annotation.bundle.Attribute;
 import org.osgi.annotation.bundle.Capability;
 import org.osgi.service.component.annotations.ComponentPropertyType;
@@ -23,25 +28,25 @@ public @interface SmartBehaviourDefinition {
     /**
      * The message types consumed by this smart behaviour
      */
-	@Attribute
+	@Attribute(value = CAPABILITY_CONSUMED_ATTRIBUTE)
 	Class<?>[] consumed();
 
-    /**
+	/**
      * The author of this smart behaviour
      */
-    @Attribute
+    @Attribute(value = CAPABILITY_AUTHOR_ATTRIBUTE)
     String author() default "";
 
     /**
      * The name of this smart behaviour
      */
-    @Attribute
+    @Attribute(value = CAPABILITY_NAME_ATTRIBUTE)
     String name() default "";
 
     /**
      * The description of this smart behaviour
      */
-    @Attribute
+    @Attribute(value = CAPABILITY_DESCRIPTION_ATTRIBUTE)
     String description() default "";
 
 	/**
