@@ -13,8 +13,31 @@
     <artifactId>eventing-example</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
-
+    
     <description>An eventing-substrate example - built using OSGi enRoute R7</description>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.paremus.brain.iot</groupId>
+                <artifactId>eventing.api</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.aries.jax.rs</groupId>
+                <artifactId>org.apache.aries.jax.rs.jackson</artifactId>
+                <version>1.0.2</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.paremus.brain.iot</groupId>
+                <artifactId>eventing.impl</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+                <scope>runtime</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
 
   <modules>
     <module>sensor.api</module>

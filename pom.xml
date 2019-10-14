@@ -65,9 +65,20 @@
 
     <pluginRepositories>
         <pluginRepository>
-            <id>Bnd Snapshots</id>
-            <name>Bnd Latest build</name>
-            <url>https://bndtools.ci.cloudbees.com/job/bnd.master/lastSuccessfulBuild/artifact/dist/bundles/</url>
+            <id>brain-iot-releases</id>
+            <name>BRAIN-IoT Releases</name>
+            <url>https://nexus.repository-pert.ismb.it/repository/maven-releases/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>brain-iot-snapshots</id>
+            <name>BRAIN-IoT Snapshots</name>
+            <url>https://nexus.repository-pert.ismb.it/repository/maven-snapshots/</url>
             <releases>
                 <enabled>false</enabled>
             </releases>
@@ -91,14 +102,12 @@
                 <artifactId>enterprise-api</artifactId>
                 <version>7.0.0</version>
                 <type>pom</type>
-                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>org.osgi.enroute</groupId>
                 <artifactId>impl-index</artifactId>
                 <version>7.0.0</version>
                 <type>pom</type>
-                <scope>runtime</scope>
             </dependency>
             <dependency>
                 <groupId>org.osgi.enroute</groupId>
