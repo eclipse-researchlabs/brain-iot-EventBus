@@ -2,12 +2,15 @@ package com.paremus.brain.iot.maven.smart.behaviour;
 import static aQute.bnd.osgi.Constants.RUNBUNDLES;
 import static aQute.bnd.osgi.Constants.RUNREQUIRES;
 import static aQute.bnd.osgi.resource.CapReqBuilder.getRequirementsFrom;
+import static aQute.bnd.osgi.resource.ResourceUtils.getIdentity;
 import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.BRAIN_IOT_DEPLOY_REQUIREMENTS;
 import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.BRAIN_IOT_DEPLOY_RESOURCES;
 import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.BRAIN_IOT_SMART_BEHEAVIOUR_SYMBOLIC_NAME;
 import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.BRAIN_IOT_SMART_BEHEAVIOUR_VERSION;
 import static eu.brain.iot.behaviour.namespace.SmartBehaviourManifest.SMART_BEHAVIOUR_MAVEN_CLASSIFIER;
+import static eu.brain.iot.behaviour.namespace.SmartBehaviourNamespace.SMART_BEHAVIOUR_NAMESPACE;
 import static java.util.stream.Collectors.joining;
+import static org.osgi.framework.namespace.IdentityNamespace.IDENTITY_NAMESPACE;
 import static org.twdata.maven.mojoexecutor.MojoExecutor.artifactId;
 import static org.twdata.maven.mojoexecutor.MojoExecutor.configuration;
 import static org.twdata.maven.mojoexecutor.MojoExecutor.element;
@@ -23,6 +26,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -40,15 +46,23 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectDependenciesResolver;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
+import org.osgi.resource.Capability;
+import org.osgi.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.twdata.maven.mojoexecutor.MojoExecutor.Element;
 
+import aQute.bnd.header.Attrs;
 import aQute.bnd.header.Parameters;
 import aQute.bnd.maven.lib.resolve.BndrunContainer;
 import aQute.bnd.osgi.Verifier;
+import aQute.bnd.osgi.repository.SimpleIndexer;
+import aQute.bnd.osgi.resource.CapReqBuilder;
+import aQute.bnd.osgi.resource.RequirementBuilder;
 import aQute.bnd.osgi.resource.ResourceUtils;
 import aQute.bnd.version.MavenVersion;
+import aQute.bnd.version.Version;
+import aQute.bnd.version.VersionRange;
 
 @Mojo(name = "smart-behaviour", defaultPhase=LifecyclePhase.PACKAGE, requiresDependencyResolution=ResolutionScope.TEST)
 public class SmartBehaviourMojo extends AbstractMojo {
@@ -159,12 +173,10 @@ public class SmartBehaviourMojo extends AbstractMojo {
 			smartBehaviourProps = processBndrun();
 		} else {
 			smartBehaviourProps = new TreeMap<>();
-			smartBehaviourProps.put(BRAIN_IOT_DEPLOY_REQUIREMENTS, "eu.brain.iot.behaviour;filter:=\"(consumed=*)\"");
+			smartBehaviourProps.put(BRAIN_IOT_DEPLOY_REQUIREMENTS, inferRequirements());
 		}
 		
-		
 		generateJar(smartBehaviourProps);
-		
 	}
 
 	private void copyDependencies() throws MojoExecutionException {
@@ -275,5 +287,49 @@ public class SmartBehaviourMojo extends AbstractMojo {
 						pluginManager
 						)
 				);
+	}
+
+	private String inferRequirements() throws MojoExecutionException {
+		List<String> requirements = new ArrayList<>();
+		
+		try {
+			for(Path p : Files.newDirectoryStream(targetFolder.toPath())) {
+				SimpleIndexer indexer = new SimpleIndexer();
+				indexer.files(Collections.singleton(p.toFile()));
+				
+				try {
+					for (Resource resource : indexer.getResources()) {
+						if(!resource.getCapabilities(SMART_BEHAVIOUR_NAMESPACE).isEmpty()) {
+							List<Capability> capabilities = resource.getCapabilities(IDENTITY_NAMESPACE);
+							if(!capabilities.isEmpty()) {
+								Capability idCap = capabilities.get(0);
+								
+								RequirementBuilder rb = new RequirementBuilder(IDENTITY_NAMESPACE);
+								
+								Version version = ResourceUtils.getVersion(idCap);
+								
+								Attrs attrs = CapReqBuilder.clone(idCap).toAttrs();
+								
+								rb.addFilter(IDENTITY_NAMESPACE, getIdentity(idCap), 
+										new VersionRange(version, version).toString(), attrs);
+								
+								requirements.add(ResourceUtils.toRequireCapability(
+										rb.buildSyntheticRequirement()));
+							}
+						}
+					}
+				} catch (Exception e) {
+					logger.warn("Failed to index the resource at {} when determinining the deployment requirements", p, e);
+				}
+			}
+		} catch (Exception e) {
+			throw new MojoExecutionException("A serious error occurred trying to determing the set of initial requirements", e);
+		}
+		
+		if(requirements.isEmpty()) {
+			throw new MojoExecutionException("No bundles providing smart behaviours could be found in " + targetFolder);
+		}
+		String requirement = requirements.stream().collect(joining(","));
+		return requirement;
 	}
 }

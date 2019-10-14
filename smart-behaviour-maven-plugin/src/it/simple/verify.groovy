@@ -16,7 +16,11 @@ Attributes behaviour_manifest = behaviour_jar.getManifest().getMainAttributes()
 assert behaviour_manifest.getValue("BRAIN-IoT-Smart-Behaviour-SymbolicName") == "com.paremus.brain.iot.maven.test.simple-test"
 assert behaviour_manifest.getValue("BRAIN-IoT-Smart-Behaviour-Version") == "0.0.1.SNAPSHOT"
 requirement = behaviour_manifest.getValue("BRAIN-IoT-Deploy-Requirement")
-assert requirement == "eu.brain.iot.behaviour;filter:=\"(consumed=*)\""
+assert requirement.startsWith("osgi.identity;filter:=")
+assert requirement.contains("(osgi.identity=simple-test)")
+assert requirement.contains("(version>=0.0.1")
+assert requirement.contains("(version<=0.0.1")
+
 
 // Check contents
 assert behaviour_jar.getEntry('simple-test-0.0.1-SNAPSHOT.jar') != null
