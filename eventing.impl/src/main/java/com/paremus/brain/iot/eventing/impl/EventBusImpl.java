@@ -265,10 +265,17 @@ public class EventBusImpl implements EventBus {
 		}
 	}
 	
-	void removeRemoteEventBus(RemoteEventBus behaviour, Map<String, Object> properties) {
+	void updatedRemoteEventBus(RemoteEventBus remote, Map<String, Object> properties) {
+		synchronized (lock) {
+			removeRemoteEventBus(remote, properties);
+			addRemoteEventBus(remote, properties);
+		}
+	}
+	
+	void removeRemoteEventBus(RemoteEventBus remote, Map<String, Object> properties) {
 		Long serviceId = getServiceId(properties);
 		
-		doRemoveSmartBehaviour(eventTypeToRemotes, behaviour, serviceId);
+		doRemoveSmartBehaviour(eventTypeToRemotes, remote, serviceId);
 	}
 	
 	@Activate
