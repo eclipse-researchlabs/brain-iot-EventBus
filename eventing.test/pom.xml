@@ -34,7 +34,7 @@
             <groupId>com.paremus.brain.iot</groupId>
             <artifactId>eventing.impl</artifactId>
             <version>0.0.1-SNAPSHOT</version>
-            <scope>runtime</scope>
+            <!-- Compile for the remote event bus test -->
         </dependency>
         <dependency>
             <groupId>org.osgi.enroute</groupId>

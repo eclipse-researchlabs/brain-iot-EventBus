@@ -146,7 +146,9 @@ public class RemoteEventBusImpl implements RemoteEventBus {
 		Map<String, List<String>> updatedFilters; 
 		
 		synchronized(this) {
-			servicesToInterests.remove(id);
+			if(servicesToInterests.remove(id) == null) {
+				return;
+			}
 			updatedFilters = getUpdatedFilters();
 		}
 		
