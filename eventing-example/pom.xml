@@ -46,5 +46,6 @@
     <module>light.impl</module>
     <module>behaviour.impl</module>
     <module>single-framework-example</module>
+    <module>multi-framework-example</module>
   </modules>
 </project>
