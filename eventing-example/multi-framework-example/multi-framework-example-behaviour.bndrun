@@ -8,28 +8,31 @@ index: target/index.xml;name="single-framework-example"
 -runfw: org.eclipse.osgi
 -runee: JavaSE-1.8
 
+# Added to ensure consistent resolves in CI and local IDE
+-runblacklist: bnd.identity;id='org.osgi.service.remoteserviceadmin'
+
 -runproperties: server=true
 
 -resolve.effective: active
 -runbundles: \
+	ch.qos.logback.classic;version='[1.2.3,1.2.4)',\
+	ch.qos.logback.core;version='[1.2.3,1.2.4)',\
 	com.paremus.brain.iot.eventing.api;version='[0.0.1,0.0.2)',\
 	com.paremus.brain.iot.eventing.impl;version='[0.0.1,0.0.2)',\
 	com.paremus.brain.iot.example.behaviour.impl;version='[0.0.1,0.0.2)',\
 	com.paremus.brain.iot.example.light.api;version='[0.0.1,0.0.2)',\
-	com.paremus.brain.iot.example.sensor.api;version='[0.0.1,0.0.2)',\
-	org.apache.felix.scr;version='[2.1.10,2.1.11)',\
-	ch.qos.logback.classic;version='[1.2.3,1.2.4)',\
-	ch.qos.logback.core;version='[1.2.3,1.2.4)',\
 	com.paremus.brain.iot.example.multi-framework-example;version='[0.0.1,0.0.2)',\
+	com.paremus.brain.iot.example.sensor.api;version='[0.0.1,0.0.2)',\
+	org.apache.aries.rsa.core;version='[1.11.0,1.11.1)',\
 	org.apache.aries.rsa.discovery.local;version='[1.11.0,1.11.1)',\
 	org.apache.aries.rsa.discovery.zookeeper;version='[1.11.0,1.11.1)',\
 	org.apache.aries.rsa.provider.tcp;version='[1.11.0,1.11.1)',\
 	org.apache.aries.rsa.spi;version='[1.11.0,1.11.1)',\
 	org.apache.aries.rsa.topology-manager;version='[1.11.0,1.11.1)',\
 	org.apache.felix.configadmin;version='[1.9.8,1.9.9)',\
+	org.apache.felix.scr;version='[2.1.10,2.1.11)',\
 	org.apache.hadoop.zookeeper;version='[3.4.10,3.4.11)',\
-	slf4j.api;version='[1.7.25,1.7.26)',\
-	org.apache.aries.rsa.core;version='[1.11.0,1.11.1)',\
 	org.osgi.util.function;version='[1.1.0,1.1.1)',\
 	org.osgi.util.promise;version='[1.1.0,1.1.1)',\
-	org.osgi.util.pushstream;version='[1.0.0,1.0.1)'
+	org.osgi.util.pushstream;version='[1.0.0,1.0.1)',\
+	slf4j.api;version='[1.7.25,1.7.26)'
