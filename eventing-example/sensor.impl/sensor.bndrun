@@ -33,4 +33,6 @@
 	org.osgi.util.pushstream;version='[1.0.0,1.0.1)',\
 	org.apache.aries.javax.jax.rs-api;version='[1.0.1,1.0.2)',\
 	com.paremus.brain.iot.example.sensor.api;version='[0.0.1,0.0.2)',\
-	com.paremus.brain.iot.example.sensor.impl;version='[0.0.1,0.0.2)'
+	com.paremus.brain.iot.example.sensor.impl;version='[0.0.1,0.0.2)',\
+	com.paremus.brain.iot.message.integrity.api;version='[0.0.1,0.0.2)',\
+	com.paremus.brain.iot.message.integrity.insecure.impl;version='[0.0.1,0.0.2)'

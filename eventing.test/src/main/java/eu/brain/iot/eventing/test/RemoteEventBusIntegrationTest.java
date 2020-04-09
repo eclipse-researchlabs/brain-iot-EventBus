@@ -190,6 +190,8 @@ public class RemoteEventBusIntegrationTest extends AbstractIntegrationTest {
     		if(b.getSymbolicName().equals("org.apache.felix.scr") ||
     				b.getSymbolicName().equals("com.paremus.brain.iot.eventing.api") ||
     				b.getSymbolicName().equals("com.paremus.brain.iot.eventing.impl") ||
+    				b.getSymbolicName().equals("com.paremus.brain.iot.message.integrity.api") ||
+    				b.getSymbolicName().equals("com.paremus.brain.iot.message.integrity.insecure.impl") ||
     				b.getSymbolicName().equals("org.osgi.util.function") ||
     				b.getSymbolicName().equals("org.osgi.util.promise") ||
     				b.getSymbolicName().startsWith("org.osgi.util.pushstream")) {

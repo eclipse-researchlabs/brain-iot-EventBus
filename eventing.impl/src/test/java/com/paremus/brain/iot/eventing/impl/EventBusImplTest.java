@@ -5,9 +5,14 @@
 
 package com.paremus.brain.iot.eventing.impl;
 
+import static eu.brain.iot.eventing.message.integrity.api.ValidationResult.ILLEGAL_SIGNATURE;
+import static eu.brain.iot.eventing.message.integrity.api.ValidationResult.INVALID;
+import static eu.brain.iot.eventing.message.integrity.api.ValidationResult.MISSING;
+import static eu.brain.iot.eventing.message.integrity.api.ValidationResult.VALID;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
@@ -34,6 +39,7 @@ import eu.brain.iot.eventing.annotation.SmartBehaviourDefinition;
 import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.SmartBehaviour;
 import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
+import eu.brain.iot.eventing.message.integrity.api.MessageIntegrityService;
 
 
 public class EventBusImplTest {
@@ -50,6 +56,9 @@ public class EventBusImplTest {
 	@Rule
 	public MockitoRule rule = MockitoJUnit.rule();
 	
+	@Mock
+	MessageIntegrityService mis;
+
 	@Mock
 	BundleContext context;
 	
@@ -73,6 +82,20 @@ public class EventBusImplTest {
 	
 	@Before
 	public void start() {
+		
+		Mockito.when(mis.generateSecurityToken(Mockito.anyMap())).thenReturn(new byte[] {1, 2, 3, 4});
+		Mockito.doAnswer(i -> {
+				Map<String, Object> eventData = i.getArgument(0);
+				Object token = eventData.get("securityToken");
+				
+				if(token == null) {
+					return MISSING;
+				} else if (!(token instanceof byte[])) {
+					return ILLEGAL_SIGNATURE;
+				} else {
+					return Arrays.equals(new byte[] {1, 2, 3, 4}, (byte[])token) ? VALID : INVALID;
+				}
+			}).when(mis).validateEvent(Mockito.anyMap());
 		
 		Mockito.doAnswer(i -> {
 				semA.release();
@@ -108,6 +131,7 @@ public class EventBusImplTest {
 				Mockito.any(RemoteEventBus.class), Mockito.any())).thenReturn(remoteReg);
 		
 		impl = new EventBusImpl();
+		impl.messageIntegrityService = mis;
 		impl.start(context);
 	}
 	
