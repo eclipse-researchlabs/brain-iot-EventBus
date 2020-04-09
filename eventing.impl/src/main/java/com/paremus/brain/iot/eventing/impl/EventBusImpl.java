@@ -41,6 +41,7 @@ import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.EventBus;
 import eu.brain.iot.eventing.api.SmartBehaviour;
 import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
+import eu.brain.iot.eventing.message.integrity.api.MessageIntegrityService;
 
 @Component(immediate=true)
 public class EventBusImpl implements EventBus {
@@ -98,6 +99,9 @@ public class EventBusImpl implements EventBus {
 	private final Object threadLock = new Object();
 
 	private String nodeId;
+	
+	@Reference
+	MessageIntegrityService messageIntegrityService;
 
 	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC)
 	void addSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Map<String, Object> properties) {
@@ -341,6 +345,15 @@ public class EventBusImpl implements EventBus {
 		//  Only add data for locally sent events
 		if(sendRemotely) {
 			autoPopulateEventData(eventData);
+		} else {
+			// We need to validate this event because it hasn't been validated in auto-population
+			switch(messageIntegrityService.validateEvent(eventData)) {
+				case VALID :
+					break;
+				default :
+					// TODO log the invalid message ?
+					return;
+			}
 		}
 		
 		List<SmartBehaviour<BrainIoTEvent>> behaviours;
@@ -405,8 +418,15 @@ public class EventBusImpl implements EventBus {
 		
 		o = eventData.get("securityToken");
 		if(o == null) {
-			// TODO apply proper security
-			eventData.put("securityToken",new byte[] {1,2,3});
+			eventData.put("securityToken", messageIntegrityService.generateSecurityToken(eventData));
+		} else {
+			switch(messageIntegrityService.validateEvent(eventData)) {
+				case VALID :
+					break;
+					// TODO respond more accurately for non-valid returns?
+				default :
+					throw new IllegalArgumentException("The event being sent contained an invalid signature");
+			}
 		}
 	}
 	

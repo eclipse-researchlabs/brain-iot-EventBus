@@ -39,4 +39,6 @@ index: target/index.xml;name="single-framework-example"
 	com.fasterxml.jackson.module.jackson-module-jaxb-annotations;version='[2.9.6,2.9.7)',\
 	org.apache.aries.jax.rs.jackson;version='[1.0.2,1.0.3)',\
 	org.apache.aries.javax.jax.rs-api;version='[1.0.1,1.0.2)',\
-	org.osgi.util.pushstream;version='[1.0.0,1.0.1)'
+	org.osgi.util.pushstream;version='[1.0.0,1.0.1)',\
+	com.paremus.brain.iot.message.integrity.api;version='[0.0.1,0.0.2)',\
+	com.paremus.brain.iot.message.integrity.insecure.impl;version='[0.0.1,0.0.2)'
