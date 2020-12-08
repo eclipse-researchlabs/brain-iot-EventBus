@@ -306,9 +306,9 @@ public class RemoteEventBusIntegrationTest extends AbstractIntegrationTest {
 		
 		
 		impl.deliver(event);
-		assertFalse(untypedSemA.tryAcquire(1000, TimeUnit.MILLISECONDS));
-		assertTrue(untypedSemB.tryAcquire(100, TimeUnit.MILLISECONDS));
-		
+		assertTrue(untypedSemB.tryAcquire(2000, TimeUnit.MILLISECONDS));
+		assertFalse(untypedSemA.tryAcquire(100, TimeUnit.MILLISECONDS));
+
 		verify(untypedBehaviourB)
 			.notify(eq(TestEvent.class.getName()), argThat(isUntypedTestEventWithMessage("boo")));
 	}
