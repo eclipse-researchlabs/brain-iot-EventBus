@@ -47,6 +47,8 @@ import eu.brain.iot.eventing.api.EventBus;
 import eu.brain.iot.eventing.api.SmartBehaviour;
 import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
 import eu.brain.iot.eventing.message.integrity.api.MessageIntegrityService;
+import eu.brain.iot.privacy.client.api.PrivacyClient;
+import eu.brain.iot.privacy.pojo.ServiceSpec;
 
 @Component(immediate=true)
 public class EventBusImpl implements EventBus {
@@ -107,6 +109,9 @@ public class EventBusImpl implements EventBus {
 	
 	@Reference
 	MessageIntegrityService messageIntegrityService;
+	
+	@Reference
+	PrivacyClient privacyClient;
 
 	@Reference(cardinality=ReferenceCardinality.MULTIPLE, policy=ReferencePolicy.DYNAMIC)
 	void addSmartBehaviour(SmartBehaviour<BrainIoTEvent> behaviour, Map<String, Object> properties) {
@@ -398,9 +403,37 @@ public class EventBusImpl implements EventBus {
 		
 		queue.add(new MonitorEventTask(eventType, eventData, !sendRemotely, monitorImpl));
 		
-		behaviours.forEach(sb -> queue.add(new TypedEventTask(eventType, 
+		// filter the receivers based on the privacy rules
+		List<String> services = new ArrayList<String>();
+		behaviours.forEach(sb -> services.add(sb.getClass().getName().toLowerCase()));
+		untypedBehaviours.forEach(sb -> services.add(sb.getClass().getName().toLowerCase()));
+		List<ServiceSpec>servicesToUse = privacyClient.filter(eventData, services);
+		if(servicesToUse==null) {
+			System.out.println("Privacy Service Filtering not available, event discarded");
+			return;
+		}
+		List<SmartBehaviour<BrainIoTEvent>> behavioursToUse = new ArrayList<SmartBehaviour<BrainIoTEvent>>();
+		List<UntypedSmartBehaviour> untypedBehavioursToUse = new ArrayList<UntypedSmartBehaviour>();
+		
+		for (SmartBehaviour<BrainIoTEvent> sb : behaviours) {
+			for(ServiceSpec service : servicesToUse) {
+				if(service.getName().equals(sb.getClass().getName().toLowerCase()))  {
+					behavioursToUse.add(sb);
+					break;
+				}
+			}
+		}
+		for (UntypedSmartBehaviour b : untypedBehaviours) {
+			for(ServiceSpec service : servicesToUse) {
+				if(service.getName().equals(b.getClass().getName().toLowerCase()))  {
+					untypedBehavioursToUse.add(b);
+				}
+			}
+		}
+	
+		behavioursToUse.forEach(sb -> queue.add(new TypedEventTask(eventType, 
 					eventClass, eventData, sb)));
-		untypedBehaviours.forEach(sb -> queue.add(new UntypedEventTask(eventType, 
+		untypedBehavioursToUse.forEach(sb -> queue.add(new UntypedEventTask(eventType, 
 					eventData, sb)));
 		remoteEventBuses.forEach(reb -> queue.add(new RemoteEventTask(eventType, 
 					eventData, reb)));
