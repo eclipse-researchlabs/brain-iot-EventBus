@@ -53,6 +53,29 @@
             <artifactId>impl-index</artifactId>
             <type>pom</type>
         </dependency>
+        <dependency>
+            <groupId>eu.brain.iot.privacy</groupId>
+            <artifactId>client.api</artifactId>
+            <version>0.0.2-SNAPSHOT</version>
+        </dependency>
+         <dependency>
+            <groupId>eu.brain.iot.privacy</groupId>
+            <artifactId>brainpep.client</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core -->
+		<dependency>
+		    <groupId>com.fasterxml.jackson.core</groupId>
+		    <artifactId>jackson-core</artifactId>
+		    <version>2.12.3</version>
+		</dependency>
+		
+		<!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
+		<dependency>
+		    <groupId>com.fasterxml.jackson.core</groupId>
+		    <artifactId>jackson-databind</artifactId>
+		    <version>2.12.3</version>
+		</dependency>
     </dependencies>
 
     <build>

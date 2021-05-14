@@ -17,8 +17,10 @@ import static eu.brain.iot.eventing.message.integrity.api.ValidationResult.VALID
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +47,8 @@ import eu.brain.iot.eventing.api.BrainIoTEvent;
 import eu.brain.iot.eventing.api.SmartBehaviour;
 import eu.brain.iot.eventing.api.UntypedSmartBehaviour;
 import eu.brain.iot.eventing.message.integrity.api.MessageIntegrityService;
+import eu.brain.iot.privacy.client.api.PrivacyClient;
+import eu.brain.iot.privacy.pojo.ServiceSpec;
 
 
 public class EventBusImplTest {
@@ -66,6 +70,9 @@ public class EventBusImplTest {
 
 	@Mock
 	BundleContext context;
+	
+	@Mock
+	PrivacyClient privacyClient;
 	
 	@Mock
 	ServiceRegistration<RemoteEventBus> remoteReg;
@@ -135,8 +142,25 @@ public class EventBusImplTest {
 		Mockito.when(context.registerService(Mockito.eq(RemoteEventBus.class), 
 				Mockito.any(RemoteEventBus.class), Mockito.any())).thenReturn(remoteReg);
 		
+		Mockito.doAnswer(i -> {
+			
+			ArrayList<ServiceSpec> specs = new ArrayList<ServiceSpec>();
+			for (String s : (ArrayList<String>) i.getArgument(1)) {
+				
+				ServiceSpec service = new ServiceSpec();
+				service.setName(s);
+				specs.add(service);
+
+			}
+			return specs;
+		}).when(privacyClient).filter(Mockito.anyMap(),Mockito.anyList());
+		
+
+		
 		impl = new EventBusImpl();
+		
 		impl.messageIntegrityService = mis;
+		impl.privacyClient = privacyClient;
 		impl.start(context);
 	}
 	
@@ -190,6 +214,7 @@ public class EventBusImplTest {
     	impl.addUntypedSmartBehaviour(untypedBehaviourB, serviceProperties);
     	
     	impl.deliver(event);
+    	
     	
     	assertTrue(semA.tryAcquire(1, TimeUnit.SECONDS));
 

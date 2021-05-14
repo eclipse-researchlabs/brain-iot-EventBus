@@ -403,41 +403,49 @@ public class EventBusImpl implements EventBus {
 		
 		queue.add(new MonitorEventTask(eventType, eventData, !sendRemotely, monitorImpl));
 		
-		// filter the receivers based on the privacy rules
-		List<String> services = new ArrayList<String>();
-		behaviours.forEach(sb -> services.add(sb.getClass().getName().toLowerCase()));
-		untypedBehaviours.forEach(sb -> services.add(sb.getClass().getName().toLowerCase()));
-		List<ServiceSpec>servicesToUse = privacyClient.filter(eventData, services);
-		if(servicesToUse==null) {
-			System.out.println("Privacy Service Filtering not available, event discarded");
-			return;
-		}
-		List<SmartBehaviour<BrainIoTEvent>> behavioursToUse = new ArrayList<SmartBehaviour<BrainIoTEvent>>();
-		List<UntypedSmartBehaviour> untypedBehavioursToUse = new ArrayList<UntypedSmartBehaviour>();
+		// If the event contains a privacy token, the Privacy Control System is used to check the services
+		// which are the services allowed to receive the data
+		if(eventData.containsKey("token")) {
+			// filter the receivers based on the privacy rules
+			List<String> services = new ArrayList<String>();
+			behaviours.forEach(sb -> services.add(sb.getClass().getName().toLowerCase()));
+			untypedBehaviours.forEach(sb -> services.add(sb.getClass().getName().toLowerCase()));
+			List<ServiceSpec>servicesToUse = privacyClient.filter(eventData, services);
+			if(servicesToUse==null) {
+				System.out.println("Privacy Service Filtering not available, event discarded");
+				return;
+			}
+			List<SmartBehaviour<BrainIoTEvent>> behavioursToUse = new ArrayList<SmartBehaviour<BrainIoTEvent>>();
+			List<UntypedSmartBehaviour> untypedBehavioursToUse = new ArrayList<UntypedSmartBehaviour>();
+			
+			for (SmartBehaviour<BrainIoTEvent> sb : behaviours) {
+				for(ServiceSpec service : servicesToUse) {
+					if(service.getName().equals(sb.getClass().getName().toLowerCase()))  {
+						behavioursToUse.add(sb);
+						break;
+					}
+				}
+			}
+			for (UntypedSmartBehaviour b : untypedBehaviours) {
+				for(ServiceSpec service : servicesToUse) {
+					if(service.getName().equals(b.getClass().getName().toLowerCase()))  {
+						untypedBehavioursToUse.add(b);
+					}
+				}
+			}
 		
-		for (SmartBehaviour<BrainIoTEvent> sb : behaviours) {
-			for(ServiceSpec service : servicesToUse) {
-				if(service.getName().equals(sb.getClass().getName().toLowerCase()))  {
-					behavioursToUse.add(sb);
-					break;
-				}
-			}
+			behavioursToUse.forEach(sb -> queue.add(new TypedEventTask(eventType, 
+						eventClass, eventData, sb)));
+			untypedBehavioursToUse.forEach(sb -> queue.add(new UntypedEventTask(eventType, 
+						eventData, sb)));
+		} else {
+			behaviours.forEach(sb -> queue.add(new TypedEventTask(eventType, 
+						eventClass, eventData, sb)));
+			untypedBehaviours.forEach(sb -> queue.add(new UntypedEventTask(eventType, 
+						eventData, sb)));
 		}
-		for (UntypedSmartBehaviour b : untypedBehaviours) {
-			for(ServiceSpec service : servicesToUse) {
-				if(service.getName().equals(b.getClass().getName().toLowerCase()))  {
-					untypedBehavioursToUse.add(b);
-				}
-			}
-		}
-	
-		behavioursToUse.forEach(sb -> queue.add(new TypedEventTask(eventType, 
-					eventClass, eventData, sb)));
-		untypedBehavioursToUse.forEach(sb -> queue.add(new UntypedEventTask(eventType, 
-					eventData, sb)));
 		remoteEventBuses.forEach(reb -> queue.add(new RemoteEventTask(eventType, 
-					eventData, reb)));
-		
+				eventData, reb)));
 	}
 
 	private void autoPopulateEventData(Map<String, Object> eventData) {

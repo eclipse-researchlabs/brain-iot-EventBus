@@ -194,6 +194,11 @@ public class RemoteEventBusIntegrationTest extends AbstractIntegrationTest {
     	
     	for(Bundle b : context.getBundles()) {
     		if(b.getSymbolicName().equals("org.apache.felix.scr") ||
+    				b.getSymbolicName().equals("com.fasterxml.jackson.core.jackson-annotations") ||
+    				b.getSymbolicName().equals("com.fasterxml.jackson.core.jackson-core") ||
+    				b.getSymbolicName().equals("com.fasterxml.jackson.core.jackson-databind") ||
+    				b.getSymbolicName().equals("eu.brain.iot.privacy.client.api") ||
+    				b.getSymbolicName().equals("eu.brain.iot.privacy.brainpep.client") ||
     				b.getSymbolicName().equals("com.paremus.brain.iot.eventing.api") ||
     				b.getSymbolicName().equals("com.paremus.brain.iot.eventing.impl") ||
     				b.getSymbolicName().equals("com.paremus.brain.iot.message.integrity.api") ||
